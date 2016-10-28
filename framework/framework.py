@@ -21,22 +21,32 @@ class Model():
 
 
 	'''
-	def __init__(self):
+	def __init__(self,data, dataMapper):
+		self.data = data #For oracle's eyes only
+		self.dataMapper = dataMapper #Also for oracle's eyes only
 		self.setup = 0
-		self.numTrucks = 5
+		self.numTrucks = 5  # must be >= 1
+		self.stepSize = 5
 		self.truckPos = []
-		self.gridHorizontalGranularity = 100
-		self.gridVerticleGranularity = 100
+		self.gridHorizontalGranularity = 100 # must be > 1
+		self.gridVerticleGranularity = 100 # must be > 1
 		self.grid = self.getGrid()
+		self.totalError = 0
+		self.missingZip = {}
 		for i in xrange(0,self.numTrucks):
-			gridRow = random.randint(0,len(grid))
-			gridCol = random.randint(0,len(grid[0]))
+			gridRow = random.randint(0,len(self.grid))
+			gridCol = random.randint(0,len(self.grid[0]))
 			self.truckPos.append((gridRow,gridCol))
+		#self.oracleMoves = self.getOracleMoves()
 		self.zipCodeLocs = self.getZipCodeLocs()
 
 
 
 	def getGrid(self):
+		#grid[0][0] is the northwest corner of sanDiego and grid[n][m] is the southeast.
+		#This means that the latitude  at grid[0][0] is greater than the latitude  at grid[n][m]
+		#and 			 the longitude at grid[0][0] is less    than the longitude at grid[n][m]
+
 		corners = [(32.981625, -117.270982), (32.692295, -117.009370)]
 
 		vertSteps = self.gridVerticleGranularity
@@ -55,28 +65,98 @@ class Model():
 			grid.append(tempRow)
 		return grid
 
+	def whereOnGrid(self,lat,longd):
+		curRow = 0
+		curCol = 0
+		if lat < self.grid[len(self.grid)-1][curCol]:
+			curRow = len(self.grid)-1
+		else:
+			while lat < self.grid[curRow][curCol]:
+				curRow += 1
+		if longd > self.grid[curRow][len(self.grid[curRow])-1]:
+			curCol = len(self.grid[curRow])-1
+		else:
+			while longd > self.grid[curRow][curCol]:
+				curCol += 1
+		return (curRow,curCol)
+
 	def getZipCodeLocs(self):
 		f = open('zipcode.txt')
 		coordinate = None
+		zipDict = {}
 		for line in f:
-			if 
+			if coordinate == None:
+				coordinate = line.strip()
+			else:
+				zipDict[int(line.strip())] = self.whereOnGrid(float(coordinate.split(',')[0].strip()),float(coordinate.split(',')[1].strip()))
+				coordinate = None
+		return zipDict
+
 
 	def baselineMoveTrucks(self, listOfData):
 		for i in xrange(0,self.numTrucks):
-			newGridRow = self.truckPos[i][0] + random.randint(-1,1)
-			newGridCol = self.truckPos[i][1] + random.randint(-1,1)
+			newGridRow = self.truckPos[i][0] + random.randint(-self.stepSize,self.stepSize)
+			newGridCol = self.truckPos[i][1] + random.randint(-self.stepSize,self.stepSize)
 			self.truckPos[i] = (newGridRow, newGridCol)
+
+	def getOracleMoves(self):
+		truckAssignment = []
+		truckMoves = []
+		for i in xrange(0,len(self.data)):
+			truckAssignment.append(-1)
+		for truck in xrange(0,self.numTrucks):
+			print truck
+			curTime = 0
+			currentLocation = self.truckPos[truck]
+			for i in xrange(0,len(self.data)):
+				if self.dataMapper[i] > curTime and truckAssignment[i] == -1:
+					dataPosition = None
+					zipCode = int(self.data[i][1][-1])
+					if zipCode not in self.zipCodeLocs:
+						dataPosition = (0,0)
+					else:
+						dataPosition = self.zipCodeLocs[zipCode]
+					numMovesPossible = self.stepSize(self.dataMapper[i] - curTime)
+					if numMovesPossible >= abs(dataPosition[0] - currentLocation[0]):
+						if numMovesPossible >= abs(dataPosition[1]-currentLocation[1]):
+							truckAssignment[i] = truck
+							currentLocation = dataPosition
+		print truckAssignment
+		self.oracleMoves = truckAssignment
+
+	#def oracleMoveTrucks(self, listOfData):
+
+
+	def manhattanDistance(self, x1, x2):
+		return abs(x1[0]-x2[0]) + abs(x1[1]-x2[1])
 
 	def minDistFromIncident(self, listOfData):
 		totalNum = len(listOfData)
 		totalDist = 0
 		for i in xrange(0,totalNum):
+			zipCode = int(listOfData[i][len(listOfData[i])-1])
+			dataPosition = None
+			if zipCode not in self.zipCodeLocs:
+				if zipCode not in self.missingZip:
+					self.missingZip[zipCode] = 0
+				self.missingZip[zipCode] += 1
+				dataPosition = (0,0)
+			else:
+				dataPosition = self.zipCodeLocs[int(listOfData[i][len(listOfData[i])-1])] #zip
 			minTruck = 0
+			minDist = self.manhattanDistance(self.truckPos[0], dataPosition)
 			for truck in xrange(0,self.numTrucks):
-
+				myDist = self.manhattanDistance(self.truckPos[truck], dataPosition) #two tuples
+				if myDist < minDist:
+					minDist = myDist
+					minTruck = truck
+			totalDist += minDist
+		return totalDist
 
 	def receiveNextData(self, listOfData):
-		baselineMoveTrucks(listOfData)
+		self.totalError += self.minDistFromIncident(listOfData)
+		#print self.totalError
+		self.baselineMoveTrucks(listOfData)
 
 
 class dataDispenser():
@@ -87,6 +167,8 @@ class dataDispenser():
 		for line in self.dataFile:
 			splitList = self.splitComma(line.strip())
 			dateTime = self.getDateTime(splitList[6])
+			if len(splitList[-1]) < 5:
+				continue
 			self.data.append([dateTime, splitList])
 		self.data.reverse()
 		self.dataLength = len(self.data)
@@ -123,24 +205,49 @@ class dataDispenser():
 		currentTime = startTime
 		endTime = self.data[-1][0]
 		timeStep = datetime.timedelta(0,self.timeStep)
-		modelInstance = Model()
 		currentElement = 0
 		currentTime = currentTime - timeStep
+		dataMapper = []
+		timeStepNumber = 0 
 		while currentTime < endTime:
-			print currentTime
+			while self.data[currentElement][0] < currentTime:
+				currentElement+=1
+				dataMapper.append(timeStepNumber)
+				if currentElement >= self.dataLength:
+					break
+			currentTime = currentTime +timeStep
+			timeStepNumber += 1
+
+
+
+
+		modelInstance = Model(self.data,dataMapper)
+		currentElement = 0
+		currentTime = currentTime - timeStep
+		dataMapper = []
+		while currentTime < endTime:
+			print currentTime, endTime, modelInstance.totalError
+
 			passList = []
 			while self.data[currentElement][0] < currentTime:
 				passList.append(self.data[currentElement][1])
 				currentElement+=1
+				dataMapper.append(timeStepNumber)
 				if currentElement >= self.dataLength:
 					break
 
 			modelInstance.receiveNextData(passList)
 
 			currentTime = currentTime +timeStep
+			timeStepNumber += 1
+		print modelInstance.totalError
+#		for el in modelInstance.missingZip.keys():
+#			print el,modelInstance.missingZip[el]
 
-dataDispenser()
+dd = dataDispenser()
+dd.dispenseData()
 
-
+#33575059
+#183960899
 
 
