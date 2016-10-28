@@ -1,1 +1,1 @@
-Dynamic Optimization of Fire Truck Locations
+Dynamic Allocation of Emergency Resources
