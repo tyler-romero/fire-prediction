@@ -1,1 +1,5 @@
-Optimization
+public safety
+emergency events
+reinforcement learning
+MDP
+resource allocation
