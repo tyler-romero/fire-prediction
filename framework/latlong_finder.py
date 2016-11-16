@@ -2,9 +2,9 @@ import geocoder
 import time
 
 year = '2009'
-filename = 'incidents'+year+'.csv'
-newFileName = 'newincidents'+year+'.csv'
-failedFileName = 'failincidents'+year+'.csv'
+filename = 'data/incidents'+year+'.csv'
+newFileName = 'data/newincidents'+year+'.csv'
+failedFileName = 'data/failincidents'+year+'.csv'
 f = open(filename,'rU')
 failed = open(failedFileName,'w')
 
@@ -41,11 +41,16 @@ newDataFile = open(newFileName,'w')
 allLines = []
 for line in f:
 	allLines.append(line)
+
 for i in xrange(0,len(allLines)):
 	line = allLines[i]
 	if len(splitComma(line)) != 11:
 		print 'fail'
 	splitList = splitComma(line)
+	if splitList[4] == '':
+		failed.write(line)
+		total+=1
+		continue
 	s = splitList[4] + " San Diego, CA"
 	g = geocoder.google(s)
 	if len(g.latlng)==2:
@@ -77,6 +82,9 @@ for i in xrange(0,len(allLines)):
 		count += 1
 	newDataString = newDataString[:-1]
 	newDataFile.write(newDataString)
+	newDataFile.write(splitList[4])
+	newDataFile.write('\n')
+
 
 
 
