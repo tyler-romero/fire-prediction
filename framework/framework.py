@@ -1,5 +1,6 @@
 import datetime
 import random
+import geocoder
 
 class Model():
 	'''
@@ -21,9 +22,7 @@ class Model():
 
 
 	'''
-	def __init__(self,data, dataMapper):
-		self.data = data #For oracle's eyes only
-		self.dataMapper = dataMapper #Also for oracle's eyes only
+	def __init__(self):
 		self.setup = 0
 		self.numTrucks = 5  # must be >= 1
 		self.stepSize = 5
@@ -37,10 +36,6 @@ class Model():
 			gridRow = random.randint(0,len(self.grid))
 			gridCol = random.randint(0,len(self.grid[0]))
 			self.truckPos.append((gridRow,gridCol))
-		#self.oracleMoves = self.getOracleMoves()
-		self.zipCodeLocs = self.getZipCodeLocs()
-
-
 
 	def getGrid(self):
 		#grid[0][0] is the northwest corner of sanDiego and grid[n][m] is the southeast.
@@ -80,18 +75,6 @@ class Model():
 				curCol += 1
 		return (curRow,curCol)
 
-	def getZipCodeLocs(self):
-		f = open('zipcode.txt')
-		coordinate = None
-		zipDict = {}
-		for line in f:
-			if coordinate == None:
-				coordinate = line.strip()
-			else:
-				zipDict[int(line.strip())] = self.whereOnGrid(float(coordinate.split(',')[0].strip()),float(coordinate.split(',')[1].strip()))
-				coordinate = None
-		return zipDict
-
 
 	def baselineMoveTrucks(self, listOfData):
 		for i in xrange(0,self.numTrucks):
@@ -99,50 +82,19 @@ class Model():
 			newGridCol = self.truckPos[i][1] + random.randint(-self.stepSize,self.stepSize)
 			self.truckPos[i] = (newGridRow, newGridCol)
 
-	def getOracleMoves(self):
-		truckAssignment = []
-		truckMoves = []
-		for i in xrange(0,len(self.data)):
-			truckAssignment.append(-1)
-		for truck in xrange(0,self.numTrucks):
-			print truck
-			curTime = 0
-			currentLocation = self.truckPos[truck]
-			for i in xrange(0,len(self.data)):
-				if self.dataMapper[i] > curTime and truckAssignment[i] == -1:
-					dataPosition = None
-					zipCode = int(self.data[i][1][-1])
-					if zipCode not in self.zipCodeLocs:
-						dataPosition = (0,0)
-					else:
-						dataPosition = self.zipCodeLocs[zipCode]
-					numMovesPossible = self.stepSize(self.dataMapper[i] - curTime)
-					if numMovesPossible >= abs(dataPosition[0] - currentLocation[0]):
-						if numMovesPossible >= abs(dataPosition[1]-currentLocation[1]):
-							truckAssignment[i] = truck
-							currentLocation = dataPosition
-		print truckAssignment
-		self.oracleMoves = truckAssignment
-
-	#def oracleMoveTrucks(self, listOfData):
-
-
 	def manhattanDistance(self, x1, x2):
 		return abs(x1[0]-x2[0]) + abs(x1[1]-x2[1])
+ 
 
 	def minDistFromIncident(self, listOfData):
 		totalNum = len(listOfData)
 		totalDist = 0
 		for i in xrange(0,totalNum):
-			zipCode = int(listOfData[i][len(listOfData[i])-1])
+			latLong = []
+			latLong.append(float(listOfData[i][4].split('-')[0]))
+			latLong.append(float(listOfData[i][4].split('-')[1]))
 			dataPosition = None
-			if zipCode not in self.zipCodeLocs:
-				if zipCode not in self.missingZip:
-					self.missingZip[zipCode] = 0
-				self.missingZip[zipCode] += 1
-				dataPosition = (0,0)
-			else:
-				dataPosition = self.zipCodeLocs[int(listOfData[i][len(listOfData[i])-1])] #zip
+			dataPosition = latLong
 			minTruck = 0
 			minDist = self.manhattanDistance(self.truckPos[0], dataPosition)
 			for truck in xrange(0,self.numTrucks):
@@ -153,6 +105,7 @@ class Model():
 			totalDist += minDist
 		return totalDist
 
+
 	def receiveNextData(self, listOfData):
 		self.totalError += self.minDistFromIncident(listOfData)
 		#print self.totalError
@@ -160,26 +113,32 @@ class Model():
 
 
 class dataDispenser():
-	def __init__(self,dataFileNames=['incidents2009.csv','incidents2010.csv'\
-		'incidents2011.csv','incidents2012.csv','incidents2013.csv','incidents2014.csv'
-		'incidents2015.csv','incidents2016.csv'])
+	def __init__(self,dataFileNames=['newincidents2009.csv']):
+
+		#,'incidents2010.csv',\
+		#'incidents2011.csv','incidents2012.csv','incidents2013.csv','incidents2014.csv',\
+		#'incidents2015.csv','incidents2016.csv']):
 		#Emergency Medical Response,FS09000001,San Diego,Stabbing/Gunshot (L1),2800 BROADWAY,28TH ST/29TH ST,SAN DIEGO,92102,1/1/09 0:05:49,1/1/09 0:08:08,0:02:19
 		self.data = []
 		self.dataLength = []
 		#self.data is a list with 8 elements: the lists of data for each year
 		for fileName in dataFileNames:
 			self.timeStep = 60
-			self.dataFile = open(fileName,'r')
+			self.dataFile = open(fileName,'rU')
 			newData = []
+			first = 1
 			for line in self.dataFile:
+				if first == 1:
+					first = 0
+					continue
 				splitList = self.splitComma(line.strip())
 				dateTime = self.getDateTime(splitList[8])
 				if len(splitList) != 11:
+					print splitList
 					raise Exception('Data is not proper number of fields')
 				newData.append([dateTime, splitList])
 			self.data.append(newData)
 			self.dataLength.append(len(newData))
-		self.dispenseData(0)
 
 	def splitComma(self,myStr):
 		#necessary because data has form _one,_two,"three, three continued", four
@@ -203,6 +162,7 @@ class dataDispenser():
 	def getDateTime(self,timeString):
 		#year, month, day, hour*24*60 + minute*60 + second
 		#example:   11/23/09 20:42:52
+		print timeString
 		myList = timeString.strip().split()[0].split('/')
 		timeList = timeString.strip().split()[1].split(':')
 		myDateTime = datetime.datetime(int(myList[2]),int(myList[0]),int(myList[1]),int(timeList[0]),int(timeList[1]),int(timeList[2]))
@@ -221,39 +181,32 @@ class dataDispenser():
 			while self.data[index][currentElement][0] < currentTime:
 				currentElement+=1
 				dataMapper.append(timeStepNumber)
+				#maps each piece of data to a time step number
 				if currentElement >= self.dataLength[index]:
 					break
 			currentTime = currentTime +timeStep
 			timeStepNumber += 1
 
+		modelInstance = Model()
+		timeStepNumber = 0
+		i=0
 
-
-
-		modelInstance = Model(self.data[index],dataMapper)
-		currentElement = 0
-		currentTime = currentTime - timeStep
-		dataMapper = []
-		while currentTime < endTime:
-			print currentTime, endTime, modelInstance.totalError
-
+		while i < len(dataMapper):
 			passList = []
-			while self.data[index][currentElement][0] < currentTime:
-				passList.append(self.data[index][currentElement][1])
-				currentElement+=1
-				dataMapper.append(timeStepNumber)
-				if currentElement >= self.dataLength[index]:
+			while dataMapper[i] <= timeStepNumber:
+				passList.append(self.data[index][i][1])
+				print i
+				i+=1
+				if i == len(dataMapper):
 					break
 
 			modelInstance.receiveNextData(passList)
-
-			currentTime = currentTime +timeStep
-			timeStepNumber += 1
+			timeStepNumber+=1
 		print modelInstance.totalError
-#		for el in modelInstance.missingZip.keys():
-#			print el,modelInstance.missingZip[el]
+
 
 dd = dataDispenser()
-dd.dispenseData()
+dd.dispenseData(0)
 
 #33575059
 #183960899
