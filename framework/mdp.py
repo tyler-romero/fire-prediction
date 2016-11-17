@@ -1,9 +1,7 @@
 class RLAlgorithm:
-    # Your algorithm will be asked to produce an action given a state.
+    # Produce an action given a state.
     def getAction(self, state): raise NotImplementedError("Override me")
 
-    # We will call this function when simulating an MDP, and you should update
-    # parameters.
     # If |state| is a terminal state, this function will be called with (s, a,
     # 0, None). When this function is called, it indicates that taking action
     # |action| in state |state| resulted in reward |reward| and a transition to state
@@ -47,7 +45,6 @@ class QLearningAlgorithm(util.RLAlgorithm):
     # You should update the weights using self.getStepSize(); use
     # self.getQ() to compute the current estimate of the parameters.
     def incorporateFeedback(self, state, action, reward, newState):
-        # BEGIN_YOUR_CODE (our solution is 12 lines of code, but don't worry if you deviate from this)
         if (newState == None): pass
         
         Vopt = max([self.getQ(newState, a) for a in self.actions(newState)])
