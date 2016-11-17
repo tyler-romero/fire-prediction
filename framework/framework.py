@@ -1,6 +1,7 @@
 import datetime
 import random
 import geocoder
+import mdp
 
 
 
@@ -34,7 +35,7 @@ class Model():
 		self.gridVerticleGranularity = 100 # must be > 1
 		self.grid = self.getGrid()
 		self.totalError = 0
-		self.qlearn = QLearningAlgorithm(self.generateActions, discount = 1, featureExtractor)
+		self.qlearn = mdp.QLearningAlgorithm(self.generateActions, 1, self.featureExtractor)
 		for i in xrange(0,self.numTrucks):
 			gridRow = random.randint(0,len(self.grid))
 			gridCol = random.randint(0,len(self.grid[0]))
@@ -44,35 +45,42 @@ class Model():
 	class State():
 		def __init__(self, col, row, tPos, iPos):
 			self.cols = col
-			self.row = row
+			self.rows = row
 			self.truckPos = tPos
 			self.incidentPos = iPos
 
 
-	#Returns the current state. Which is just a 
+	#Returns the current state. Which is just a compact representation of the model
 	def generateCurrentState(self):
 		return State(self.gridHorizontalGranularity, self.gridVerticleGranularity, self.truckPos, self.incidentPos)
 
 
 	#returns a list of actions based on the current state
-	def genearteActions(self):
+	#	We discussed doing this by:
+	#		- (randomly sampling and assigning each truck to the nearest sampled location)*1000
+	#		- Including the previous best action
+	#		- (Randomly assigning each truck to an incident)*1000
+	def generateActions(self):
 		raise("Implement This")
 
 
-	def updateTruckLocations(self):
+	#Take an action and move the trucks accordingly
+	def updateTruckLocations(self, action):
 		raise("Implement This")
 
 
-	#Resolve and update incidents (set self.numberOfResolvedIncidents)
+	#Resolve and update incidents
 	def resolveIncidents(self):
-		raise("Implement This")
+		for incident in list(self.incidentPos):
+			for truck in self.truckPos:
+				if incident == truck:
+					self.incidentPos.remove(incident)
 
 
 	def getGrid(self):
 		#grid[0][0] is the northwest corner of sanDiego and grid[n][m] is the southeast.
 		#This means that the latitude  at grid[0][0] is greater than the latitude  at grid[n][m]
 		#and 			 the longitude at grid[0][0] is less    than the longitude at grid[n][m]
-
 		corners = [(32.981625, -117.270982), (32.692295, -117.009370)]
 
 		vertSteps = self.gridVerticleGranularity
@@ -115,6 +123,10 @@ class Model():
 			self.truckPos[i] = (newGridRow, newGridCol)
 
 
+	def featureExtractor(self):
+		raise("Implement This")
+
+
 	def rewardFuntion(self, oldState, newState):
 		#TODO: Does reward have to have something to do with the random nature of changing states? This is deterministic.
 		return len(oldState.incidentPos) - len(newState.incidentPos)
@@ -123,7 +135,7 @@ class Model():
 	def qlearnMoveTrucks(self, listOfData):
 		currentState = generateCurrentState()
 		action = self.qlearn.getAction(self, currentState)
-		self.updateTruckLocations()
+		self.updateTruckLocations(action)
 		self.resolveIncidents()
 
 		for i in xrange(0,self.numTrucks):
@@ -162,7 +174,8 @@ class Model():
 
 	def updateModel(self, listOfData):
 		#self.totalError += self.minDistFromIncident(listOfData)
-		lati, lond = listOfData[4]	#Parse string separated by _, convert to floats
+		raise("Implement lat-long conversion to floats")
+		lati, lond = listOfData[4]	#TODO: Parse string separated by _-, convert to floats
 		self.incidentPos.append(whereOnGrid(lati, lond))
 
 
@@ -221,6 +234,7 @@ class dataDispenser():
 		returnList.append(myStr[previous:len(myStr)])
 		return returnList
 
+
 	def fixLatLong(self,myList):
 		#sorry about this, latLong was formatted as 'lat-long', needs to be 'lat_-long'
 		myList[4] = myList[4].split('-')[0]+'_-'+myList[4].split('-')[1]
@@ -234,6 +248,7 @@ class dataDispenser():
 		timeList = timeString.strip().split()[1].split(':')
 		myDateTime = datetime.datetime(int(myList[2]),int(myList[0]),int(myList[1]),int(timeList[0]),int(timeList[1]),int(timeList[2]))
 		return myDateTime
+
 
 	def dispenseData(self):
 		startTime = self.data[0][0]
