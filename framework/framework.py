@@ -52,7 +52,7 @@ class Model():
 
 	#Returns the current state. Which is just a compact representation of the model
 	def generateCurrentState(self):
-		return State(self.gridHorizontalGranularity, self.gridVerticleGranularity, self.truckPos, self.incidentPos)
+		return self.State(self.gridHorizontalGranularity, self.gridVerticleGranularity, self.truckPos, self.incidentPos)
 
 
 	#returns a list of actions based on the current state
@@ -60,7 +60,7 @@ class Model():
 	#		- (randomly sampling and assigning each truck to the nearest sampled location)*1000
 	#		- Including the previous best action
 	#		- (Randomly assigning each truck to an incident)*1000
-	def generateActions(self):
+	def generateActions(self,state):
 		raise("Implement This")
 
 
@@ -124,8 +124,46 @@ class Model():
 
 
 	def featureExtractor(self):
-		raise("Implement This")
+		#The way I am doing this is, instead of how in blackjack where we did (state,action) pairs
+		#as the feature key, now I am doing (1, some_helpful_value) -- the one so that it is included
+		#for every state no matter what's happening, and the value to hopefully kind of represent
+		#the action? I could be doing this wrong but I think this is right
+		results = []
+		#sum of distance from truck to nearest truck
+		totalMin = 0
+		for truck in xrange(0,self.numTrucks):
+			myMin = self.gridHorizontalGranularity+self.gridVerticleGranularity
+			minPos = -1
+			for other_truck in xrange(0,self.numTrucks):
+				if truck == other_truck:
+					continue
+				if self.manhattanDistance(self.truckPos[truck],self.truckPos[other_truck]) < myMin:
+					myMin = self.manhattanDistance(self.truckPos[truck],self.truckPos[other_truck])
+					minPos = other_truck
+			totalMin += myMin
+		keyTuple = (1,('truck',totalMin/float(self.numTrucks)))
+		results.append((keyTuple,1))
 
+		#sum of distances from incidents to nearest truck
+		totalMin = 0
+		numIncidents = len(self.incidentPos)
+		for incident in xrange(0,numIncidents):
+			myMin = self.gridHorizontalGranularity+self.gridVerticleGranularity
+			minPos = -1
+			for truck in xrange(0,self.numTrucks):
+				if self.manhattanDistance(self.truckPos[truck],self.incidentPos[incident]) < myMin:
+					myMin = self.manhattanDistance(self.truckPos[truck],self.incidentPos[incident])
+					minPos = other_truck
+			totalMin += myMin
+		if numIncidents == 0:
+			keyTuple = (1,('incident',0))
+			results.append((keyTuple,1))
+		else:
+			keyTuple = (1,('incident',int(totalMin/float(numIncidents))))
+			results.append((keyTuple,1))
+
+
+		return results
 
 	def rewardFuntion(self, oldState, newState):
 		#TODO: Does reward have to have something to do with the random nature of changing states? This is deterministic.
@@ -133,8 +171,8 @@ class Model():
 
 
 	def qlearnMoveTrucks(self, listOfData):
-		currentState = generateCurrentState()
-		action = self.qlearn.getAction(self, currentState)
+		currentState = self.generateCurrentState()
+		action = self.qlearn.getAction(currentState)
 		self.updateTruckLocations(action)
 		self.resolveIncidents()
 
@@ -174,9 +212,10 @@ class Model():
 
 	def updateModel(self, listOfData):
 		#self.totalError += self.minDistFromIncident(listOfData)
-		raise("Implement lat-long conversion to floats")
-		lati, lond = listOfData[4]	#TODO: Parse string separated by _-, convert to floats
-		self.incidentPos.append(whereOnGrid(lati, lond))
+		for datapoint in listOfData:
+			lati = float(datapoint[4].split('_')[0])
+			lond = float(datapoint[4].split('_')[1])
+			self.incidentPos.append(whereOnGrid(lati, lond))
 
 
 	#Recieve Data, Move Trucks

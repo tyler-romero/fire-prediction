@@ -1,3 +1,5 @@
+import util
+import collections
 class RLAlgorithm:
     # Produce an action given a state.
     def getAction(self, state): raise NotImplementedError("Override me")
@@ -11,12 +13,12 @@ class RLAlgorithm:
 
 
 class QLearningAlgorithm(util.RLAlgorithm):
-    def __init__(self, actions, discount, featureExtractor, explorationProb=0.2):
-        self.actions = actions
+    def __init__(self, possible_actions, discount, featureExtractor, explorationProb=0.2):
+        self.possible_actions = possible_actions
         self.discount = discount
         self.featureExtractor = featureExtractor
         self.explorationProb = explorationProb
-        self.weights = defaultdict(float)
+        self.weights = collections.defaultdict(float)
         self.numIters = 0
 
     # Return the Q function associated with the weights and features
@@ -30,11 +32,12 @@ class QLearningAlgorithm(util.RLAlgorithm):
     # Here we use the epsilon-greedy algorithm: with probability
     # |explorationProb|, take a random action.
     def getAction(self, state):
+        state_actions = self.possible_actions(state)
         self.numIters += 1
         if random.random() < self.explorationProb:
-            return random.choice(self.actions(state))
+            return random.choice(state_actions)
         else:
-            return max((self.getQ(state, action), action) for action in self.actions(state))[1]
+            return max((self.getQ(state, action), action) for action in state_actions)[1]
 
     # Call this function to get the step size to update the weights.
     def getStepSize(self):
@@ -51,3 +54,5 @@ class QLearningAlgorithm(util.RLAlgorithm):
         getQ = self.getQ(state, action)
         for f, v in self.featureExtractor(state, action):
             self.weights[f] -= self.getStepSize() * (getQ - (reward + self.discount * Vopt)) * v
+
+
