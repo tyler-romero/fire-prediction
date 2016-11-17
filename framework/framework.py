@@ -174,7 +174,7 @@ class Model():
 	
 
 class dataDispenser():
-	def __init__(self,dataFileNames=['newincidents2009.csv']):
+	def __init__(self,day,timerange,dataFileNames=['data/i2009.csv']):
 
 		#,'incidents2010.csv',\
 		#'incidents2011.csv','incidents2012.csv','incidents2013.csv','incidents2014.csv',\
@@ -182,11 +182,12 @@ class dataDispenser():
 		#Emergency Medical Response,FS09000001,San Diego,Stabbing/Gunshot (L1),2800 BROADWAY,28TH ST/29TH ST,SAN DIEGO,92102,1/1/09 0:05:49,1/1/09 0:08:08,0:02:19
 		self.data = []
 		self.dataLength = []
+		self.start = day
+		self.end = day+timerange
 		#self.data is a list with 8 elements: the lists of data for each year
 		for fileName in dataFileNames:
 			self.timeStep = 60
 			self.dataFile = open(fileName,'rU')
-			newData = []
 			first = 1
 			for line in self.dataFile:
 				if first == 1:
@@ -194,12 +195,13 @@ class dataDispenser():
 					continue
 				splitList = self.splitComma(line.strip())
 				dateTime = self.getDateTime(splitList[8])
+				splitList = self.fixLatLong(splitList)
 				if len(splitList) != 11:
 					print splitList
 					raise Exception('Data is not proper number of fields')
-				newData.append([dateTime, splitList])
-			self.data.append(newData)
-			self.dataLength.append(len(newData))
+				if dateTime >= self.start and dateTime <= self.end:
+					self.data.append([dateTime, splitList])
+			self.dataLength = len(self.data)
 
 	def splitComma(self,myStr):
 		#necessary because data has form _one,_two,"three, three continued", four
@@ -219,31 +221,35 @@ class dataDispenser():
 		returnList.append(myStr[previous:len(myStr)])
 		return returnList
 
+	def fixLatLong(self,myList):
+		#sorry about this, latLong was formatted as 'lat-long', needs to be 'lat_-long'
+		myList[4] = myList[4].split('-')[0]+'_-'+myList[4].split('-')[1]
+		return myList
+
 
 	def getDateTime(self,timeString):
 		#year, month, day, hour*24*60 + minute*60 + second
 		#example:   11/23/09 20:42:52
-		print timeString
 		myList = timeString.strip().split()[0].split('/')
 		timeList = timeString.strip().split()[1].split(':')
 		myDateTime = datetime.datetime(int(myList[2]),int(myList[0]),int(myList[1]),int(timeList[0]),int(timeList[1]),int(timeList[2]))
 		return myDateTime
 
-	def dispenseData(self,index):
-		startTime = self.data[index][0][0]
+	def dispenseData(self):
+		startTime = self.data[0][0]
 		currentTime = startTime
-		endTime = self.data[index][-1][0]
+		endTime = self.data[-1][0]
 		timeStep = datetime.timedelta(0,self.timeStep)
 		currentElement = 0
 		currentTime = currentTime - timeStep
 		dataMapper = []
 		timeStepNumber = 0 
 		while currentTime < endTime:
-			while self.data[index][currentElement][0] < currentTime:
+			while self.data[currentElement][0] < currentTime:
 				currentElement+=1
 				dataMapper.append(timeStepNumber)
 				#maps each piece of data to a time step number
-				if currentElement >= self.dataLength[index]:
+				if currentElement >= self.dataLength:
 					break
 			currentTime = currentTime +timeStep
 			timeStepNumber += 1
@@ -255,7 +261,7 @@ class dataDispenser():
 		while i < len(dataMapper):
 			passList = []
 			while dataMapper[i] <= timeStepNumber:
-				passList.append(self.data[index][i][1])
+				passList.append(self.data[i][1])
 				print i
 				i+=1
 				if i == len(dataMapper):
@@ -266,10 +272,5 @@ class dataDispenser():
 		print modelInstance.totalError
 
 
-dd = dataDispenser()
-dd.dispenseData(0)
-
-#33575059
-#183960899
-
-
+dd = dataDispenser(datetime.datetime(9,1,1),datetime.timedelta(1))
+dd.dispenseData()
