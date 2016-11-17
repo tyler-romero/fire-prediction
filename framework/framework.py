@@ -2,6 +2,8 @@ import datetime
 import random
 import geocoder
 
+qlearn = QLearningAlgorithm(model.generateActions(), discount = 1, featureExtractor)
+
 class Model():
 	'''
 
@@ -22,20 +24,36 @@ class Model():
 
 
 	'''
+	class State():
+		def __init__(self, col, row, tPos, iPos):
+			self.cols = col
+			self.row = row
+			self.truckPos = tPos
+			self.incidentPos = iPos
+
+
 	def __init__(self):
 		self.setup = 0
 		self.numTrucks = 5  # must be >= 1
 		self.stepSize = 5
 		self.truckPos = []
+		self.incidentPos = []
 		self.gridHorizontalGranularity = 100 # must be > 1
 		self.gridVerticleGranularity = 100 # must be > 1
 		self.grid = self.getGrid()
 		self.totalError = 0
-		self.missingZip = {}
 		for i in xrange(0,self.numTrucks):
 			gridRow = random.randint(0,len(self.grid))
 			gridCol = random.randint(0,len(self.grid[0]))
 			self.truckPos.append((gridRow,gridCol))
+
+
+	#Returns the current state. Which is just a 
+	def generateCurrentState(self):
+		return State(self.gridHorizontalGranularity, self.gridVerticleGranularity, self.truckPos, self.incidentPos)
+
+	def genearteActions(self):
+		
 
 	def getGrid(self):
 		#grid[0][0] is the northwest corner of sanDiego and grid[n][m] is the southeast.
@@ -82,6 +100,13 @@ class Model():
 			newGridCol = self.truckPos[i][1] + random.randint(-self.stepSize,self.stepSize)
 			self.truckPos[i] = (newGridRow, newGridCol)
 
+	def qlearnMoveTrucks(self, listOfData):
+		getAction(self, state)
+		for i in xrange(0,self.numTrucks):
+			newGridRow = self.truckPos[i][0] + random.randint(-self.stepSize,self.stepSize)
+			newGridCol = self.truckPos[i][1] + random.randint(-self.stepSize,self.stepSize)
+			self.truckPos[i] = (newGridRow, newGridCol)
+
 	def manhattanDistance(self, x1, x2):
 		return abs(x1[0]-x2[0]) + abs(x1[1]-x2[1])
  
@@ -106,8 +131,11 @@ class Model():
 		return totalDist
 
 
+	#Recieve Data, Move Trucks
 	def receiveNextData(self, listOfData):
 		self.totalError += self.minDistFromIncident(listOfData)
+		lati, lond = listOfData[4]
+		self.incidentPos.append(whereOnGrid(lati, lond))
 		#print self.totalError
 		self.baselineMoveTrucks(listOfData)
 
