@@ -2,3 +2,7 @@
 *.ipynb
 
 framework/untitled
+
+*.pyc
+
+*.pyc

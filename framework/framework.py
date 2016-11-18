@@ -111,40 +111,40 @@ class Model():
 			dy = directive_row - t_row
 			dx = directive_col - t_col
 			if (dx == 0 and dy == 0):
-			# "do nothing" 
-				return (t_row, t_col)
-			if dx >= 0:
+				print "do nothing" 
+				self.truckPos[i] = (t_row, t_col)
+			elif dx >= 0:
 				if(-.5*dx <= dy and dy <= .5*dx):
-					# "move right"
+					print "move right"
 					self.truckPos[i] =(t_row, t_col +1)
 				elif(-2*dx <= dy and dy <= -.5*dx):
-				# "move right and up"
+					print"move right and up"
 					self.truckPos[i] = (t_row-1, t_col+1)
 				elif(.5*dx <= dy and dy <= 2*dx):
-				# "move right and down"
+					print"move right and down"
 					self.truckPos[i] = (t_row+1, t_col+1)
 				elif(2*dx >= dy):
-				# "move up"
+					print"move up"
 					self.truckPos[i] = (t_row-1, t_col)
 				elif(dy >= -2*dx):
-				# "move down"
+					print"move down"
 					self.truckPos[i] = (t_row+1, t_col)
 			elif dx <= 0:
 				if(-.5*dx >= dy and dy >= .5*dx):
-				# "move left"
+					print"move left"
 					self.truckPos[i] = (t_row, t_col -1)
 				elif(.5*dx >= dy and dy >= 2*dx):
-				# "move left and up"
+					print"move left and up"
 					self.truckPos[i] = (t_row-1, t_col-1)
 				elif(-2*dx >= dy and dy >= -.5*dx):
-				# "move left and down"
+					print"move left and down"
 					self.truckPos[i] = (t_row+1, t_col-1)
 				elif(2*dx <= dy):
-				# "move up"
-					self.truckPos[i] = (t_row-1, t_col)
-				elif(dy <= -2*dx):
-				# "move down"
+					print"move down"
 					self.truckPos[i] = (t_row+1, t_col)
+				elif(dy <= -2*dx):
+					print"move up"
+					self.truckPos[i] = (t_row-1, t_col)
 		print "Truck Pos After", self.truckPos
 
 	#Resolve and update incidents
