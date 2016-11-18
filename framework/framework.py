@@ -30,7 +30,7 @@ class Model():
 	'''
 	def __init__(self):
 		self.setup = 0
-		self.numTrucks = 9  # must be >= 1
+		self.numTrucks = 3  # must be >= 1
 		self.stepSize = 5
 		self.truckPos = []
 		self.ongoingIncidents = {}
