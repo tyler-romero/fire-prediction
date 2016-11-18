@@ -1,9 +1,10 @@
 import datetime
 import random
-import geocoder
+#import geocoder
 import mdp
 import math
 import sys
+import copy
 
 
 
@@ -29,14 +30,14 @@ class Model():
 	'''
 	def __init__(self):
 		self.setup = 0
-		self.numTrucks = 5  # must be >= 1
+		self.numTrucks = 2  # must be >= 1
 		self.stepSize = 5
 		self.truckPos = []
 		self.ongoingIncidents = {}
 		self.allIncidents = {}
 		self.resolvedIncidents = {}
-		self.gridHorizontalGranularity = 100 # must be > 1
-		self.gridVerticleGranularity = 100 # must be > 1
+		self.gridHorizontalGranularity = 10 # must be > 1
+		self.gridVerticleGranularity = 10 # must be > 1
 		self.grid = self.getGrid()
 		self.totalError = 0
 		self.currentTime = -1
@@ -45,6 +46,7 @@ class Model():
 			gridRow = random.randint(0,len(self.grid))
 			gridCol = random.randint(0,len(self.grid[0]))
 			self.truckPos.append((gridRow,gridCol))
+		print self.truckPos
 
 
 	class State():
@@ -66,7 +68,7 @@ class Model():
 	#		- Including the previous best action
 	#		- (Randomly assigning each truck to an incident)*1000
 	def generateActions(self, state):
-		thresh = 0.3	#Chance of inserting an incident
+		thresh = 0	#Chance of inserting an incident
 		masterList = []
 		for _ in range(100):
 			#For each truck, insert a point
@@ -74,6 +76,7 @@ class Model():
 			for truck in self.truckPos:
 				if random.random() > thresh or len(self.ongoingIncidents) is 0:
 					rrow = random.randint(0,self.gridVerticleGranularity-1)
+					rcol = random.randint(0,self.gridHorizontalGranularity-1)
 					point_list.append((rrow, rcol))
 				else:
 					rIndex = random.randint(0, len(self.ongoingIncidents))
@@ -82,66 +85,67 @@ class Model():
 
 			#Greedily assign each point to the nearest truck
 			assignment_list = [-1]*len(self.truckPos)
+			tempTruckList = copy.deepcopy(self.truckPos)
 			for j, point in enumerate(point_list):
 				minDist = sys.maxint
 				minIndex = 0
-				tempTruckList = self.truckPos
 				for i, truck in enumerate(tempTruckList):
-					dist = manhattanDistance(truck, point):
+					if truck is None:
+						continue
+					dist = self.manhattanDistance(truck, point)
 					if dist < minDist:
 						minDist = dist
 						minIndex = i
 				assignment_list[minIndex] = point
-				del tempTruckList[minIndex]
+				tempTruckList[minIndex] = None
 			masterList.append(assignment_list)
 		return masterList
-				
-
-
-
 
 	#Take an action and move the trucks accordingly
 	def updateTruckLocations(self, truckDirectives):
 		#Action should be a list of tuples where action[i] = (ith truck directive x, ith truck directive y)
-        for i, (t_row, t_col) in enumerate(self.truckPos):
-            (directive_row, directive_col) = truckDirectives[i]
-            dy = directive_row - t_row
-            dx = directive_col - t_col
-            if (dx == 0 and dy == 0):
-                # "do nothing" 
-                return (t_row, t_col)
-            if dx >= 0:
-                if(-.5*dx <= dy and dy <= .5*dx):
-                    # "move right"
-                    self.truckPos[i] =(t_row, t_col +1)
-                elif(-2*dx <= dy and dy <= -.5*dx):
-                    # "move right and up"
-                    self.truckPos[i] = (t_row-1, t_col+1)
-                elif(.5*dx <= dy and dy <= 2*dx):
-                    # "move right and down"
-                    self.truckPos[i] = (t_row+1, t_col+1)
-                elif(2*dx >= dy):
-                    # "move up"
-                    self.truckPos[i] = (t_row-1, t_col)
-                elif(dy >= -2*dx):
-                    # "move down"
-                    self.truckPos[i] = (t_row+1, t_col)
-            if dx <= 0:
-                if(-.5*dx >= dy and dy >= .5*dx):
-                    # "move left"
-                    self.truckPos[i] = (t_row, t_col -1)
-                elif(.5*dx >= dy and dy >= 2*dx):
-                    # "move left and up"
-                    self.truckPos[i] = (t_row-1, t_col-1)
-                elif(-2*dx >= dy and dy >= -.5*dx):
-                    # "move left and down"
-                    self.truckPos[i] = (t_row+1, t_col-1)
-                elif(2*dx <= dy):
-                    # "move up"
-                    self.truckPos[i] = (t_row-1, t_col)
-                elif(dy <= -2*dx):
-                    # "move down"
-                    self.truckPos[i] = (t_row+1, t_col)
+		print "Truck Pos", self.truckPos
+		print "TD", truckDirectives
+		for i, (t_row, t_col) in enumerate(self.truckPos):
+			(directive_row, directive_col) = truckDirectives[i]
+			dy = directive_row - t_row
+			dx = directive_col - t_col
+			if (dx == 0 and dy == 0):
+			# "do nothing" 
+				return (t_row, t_col)
+			if dx >= 0:
+				if(-.5*dx <= dy and dy <= .5*dx):
+					# "move right"
+					self.truckPos[i] =(t_row, t_col +1)
+				elif(-2*dx <= dy and dy <= -.5*dx):
+				# "move right and up"
+					self.truckPos[i] = (t_row-1, t_col+1)
+				elif(.5*dx <= dy and dy <= 2*dx):
+				# "move right and down"
+					self.truckPos[i] = (t_row+1, t_col+1)
+				elif(2*dx >= dy):
+				# "move up"
+					self.truckPos[i] = (t_row-1, t_col)
+				elif(dy >= -2*dx):
+				# "move down"
+					self.truckPos[i] = (t_row+1, t_col)
+			elif dx <= 0:
+				if(-.5*dx >= dy and dy >= .5*dx):
+				# "move left"
+					self.truckPos[i] = (t_row, t_col -1)
+				elif(.5*dx >= dy and dy >= 2*dx):
+				# "move left and up"
+					self.truckPos[i] = (t_row-1, t_col-1)
+				elif(-2*dx >= dy and dy >= -.5*dx):
+				# "move left and down"
+					self.truckPos[i] = (t_row+1, t_col-1)
+				elif(2*dx <= dy):
+				# "move up"
+					self.truckPos[i] = (t_row-1, t_col)
+				elif(dy <= -2*dx):
+				# "move down"
+					self.truckPos[i] = (t_row+1, t_col)
+		print "Truck Pos After", self.truckPos
 
 	#Resolve and update incidents
 	def resolveIncidents(self):
@@ -198,7 +202,7 @@ class Model():
 			self.truckPos[i] = (newGridRow, newGridCol)
 
 
-	def featureExtractor(self):
+	def featureExtractor(self,state,action):
 		#The way I am doing this is, instead of how in blackjack where we did (state,action) pairs
 		#as the feature key, now I am doing (1, some_helpful_value) -- the one so that it is included
 		#for every state no matter what's happening, and the value to hopefully kind of represent
@@ -212,6 +216,7 @@ class Model():
 			for other_truck in xrange(0,self.numTrucks):
 				if truck == other_truck:
 					continue
+				#print truck, other_truck, self.truckPos, self.numTrucks
 				if self.manhattanDistance(self.truckPos[truck],self.truckPos[other_truck]) < myMin:
 					myMin = self.manhattanDistance(self.truckPos[truck],self.truckPos[other_truck])
 					minPos = other_truck
@@ -222,12 +227,12 @@ class Model():
 		#sum of distances from incidents to nearest truck
 		totalMin = 0
 		numIncidents = len(self.ongoingIncidents)
-		for incident in xrange(0,numIncidents):
+		for key, incident in self.ongoingIncidents.iteritems():
 			myMin = self.gridHorizontalGranularity+self.gridVerticleGranularity
 			minPos = -1
 			for truck in xrange(0,self.numTrucks):
-				if self.manhattanDistance(self.truckPos[truck],self.ongoingIncidents[incident]) < myMin:
-					myMin = self.manhattanDistance(self.truckPos[truck],self.ongoingIncidents[incident])
+				if self.manhattanDistance(self.truckPos[truck], incident) < myMin:
+					myMin = self.manhattanDistance(self.truckPos[truck],incident)
 					minPos = other_truck
 			totalMin += myMin
 		if numIncidents == 0:
@@ -236,8 +241,6 @@ class Model():
 		else:
 			keyTuple = (1,('incident',int(totalMin/float(numIncidents))))
 			results.append((keyTuple,1))
-
-
 		return results
 
 	def rewardFuntion(self, oldState, newState):
@@ -250,15 +253,9 @@ class Model():
 		currentState = self.generateCurrentState()
 		action = self.qlearn.getAction(currentState)
 		self.updateTruckLocations(action)
-		self.resolveIncidents()
-
-		for i in xrange(0,self.numTrucks):
-			newGridRow = self.truckPos[i][0] + random.randint(-self.stepSize,self.stepSize)
-			newGridCol = self.truckPos[i][1] + random.randint(-self.stepSize,self.stepSize)
-			self.truckPos[i] = (newGridRow, newGridCol)
-		
-		newState = generateCurrentState()
-		reward = rewardFuntion(currentState, newState)
+		self.resolveIncidents()	
+		newState = self.generateCurrentState()
+		reward = self.rewardFuntion(currentState, newState)
 		self.qlearn.incorporateFeedback(currentState, action, reward, newState)
 
 
@@ -293,15 +290,15 @@ class Model():
 			incident_key = datapoint[2]
 			lati = float(datapoint[4].split('_')[0])
 			lond = float(datapoint[4].split('_')[1])
-			location = whereOnGrid(lati, lond)
+			location = self.whereOnGrid(lati, lond)
 			self.ongoingIncidents[incident_key] = location
 			self.allIncidents[incident_key] = (self.currentTime, location)
 
 	def printModel(self):
-		baseString = "O"*self.gridVerticleGranularity
-		stringModel = [baseString for i in range(self.gridHorizontalGranularity)]
+		stringModel = [["O"  for i in range(self.gridHorizontalGranularity)] for j in range(self.gridVerticleGranularity)]
+		print "Print TruckPos", self.truckPos
 		for i,(t_row,t_col) in enumerate(self.truckPos):
-			stringModel[t_row][t_col] = str(i)
+			stringModel[t_row][t_col] = str(i+1)
 		for (i_row,i_col) in self.ongoingIncidents.values():
 			stringModel[i_row][i_col] = "X"
 		for i in range(len(stringModel)):

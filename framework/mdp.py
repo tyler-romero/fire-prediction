@@ -1,5 +1,8 @@
 import util
 import collections
+import random
+import math
+
 class RLAlgorithm:
     # Produce an action given a state.
     def getAction(self, state): raise NotImplementedError("Override me")
@@ -50,7 +53,7 @@ class QLearningAlgorithm(util.RLAlgorithm):
     def incorporateFeedback(self, state, action, reward, newState):
         if (newState == None): pass
         
-        Vopt = max([self.getQ(newState, a) for a in self.actions(newState)])
+        Vopt = max([self.getQ(newState, a) for a in self.possible_actions(newState)])
         getQ = self.getQ(state, action)
         for f, v in self.featureExtractor(state, action):
             self.weights[f] -= self.getStepSize() * (getQ - (reward + self.discount * Vopt)) * v
