@@ -2,6 +2,7 @@ import datetime
 import random
 import geocoder
 import mdp
+import math
 
 
 
@@ -68,9 +69,47 @@ class Model():
 
 
 	#Take an action and move the trucks accordingly
-	def updateTruckLocations(self, action):
-		raise("Implement This")
-
+	def updateTruckLocations(self, truckDirectives):
+		#Action should be a list of tuples where action[i] = (ith truck directive x, ith truck directive y)
+        for i, (t_row, t_col) in enumerate(self.truckPos):
+            (directive_row, directive_col) = truckDirectives[i]
+            dy = directive_row - t_row
+            dx = directive_col - t_col
+            if (dx == 0 and dy == 0):
+                # "do nothing" 
+                return (t_row, t_col)
+            if dx >= 0:
+                if(-.5*dx <= dy and dy <= .5*dx):
+                    # "move right"
+                    self.truckPos[i] =(t_row, t_col +1)
+                elif(-2*dx <= dy and dy <= -.5*dx):
+                    # "move right and up"
+                    self.truckPos[i] = (t_row-1, t_col+1)
+                elif(.5*dx <= dy and dy <= 2*dx):
+                    # "move right and down"
+                    self.truckPos[i] = (t_row+1, t_col+1)
+                elif(2*dx >= dy):
+                    # "move up"
+                    self.truckPos[i] = (t_row-1, t_col)
+                elif(dy >= -2*dx):
+                    # "move down"
+                    self.truckPos[i] = (t_row+1, t_col)
+            if dx <= 0:
+                if(-.5*dx >= dy and dy >= .5*dx):
+                    # "move left"
+                    self.truckPos[i] = (t_row, t_col -1)
+                elif(.5*dx >= dy and dy >= 2*dx):
+                    # "move left and up"
+                    self.truckPos[i] = (t_row-1, t_col-1)
+                elif(-2*dx >= dy and dy >= -.5*dx):
+                    # "move left and down"
+                    self.truckPos[i] = (t_row+1, t_col-1)
+                elif(2*dx <= dy):
+                    # "move up"
+                    self.truckPos[i] = (t_row-1, t_col)
+                elif(dy <= -2*dx):
+                    # "move down"
+                    self.truckPos[i] = (t_row+1, t_col)
 
 	#Resolve and update incidents
 	def resolveIncidents(self):
@@ -171,6 +210,7 @@ class Model():
 
 	def rewardFuntion(self, oldState, newState):
 		#TODO: Does reward have to have something to do with the random nature of changing states? This is deterministic.
+		#probably should be a function of time as well (we want to incentivize quick action)
 		return len(oldState.incidentPos) - len(newState.incidentPos)
 
 
