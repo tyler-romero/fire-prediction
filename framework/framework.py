@@ -295,7 +295,7 @@ class Model():
 			self.allIncidents[incident_key] = (self.currentTime, location)
 
 	def printModel(self):
-		stringModel = [["O"  for i in range(self.gridHorizontalGranularity)] for j in range(self.gridVerticleGranularity)]
+		stringModel = [["_"  for i in range(self.gridHorizontalGranularity)] for j in range(self.gridVerticleGranularity)]
 		print "Print TruckPos", self.truckPos
 		for i,(t_row,t_col) in enumerate(self.truckPos):
 			stringModel[t_row][t_col] = str(i+1)
@@ -303,6 +303,7 @@ class Model():
 			stringModel[i_row][i_col] = "X"
 		for i in range(len(stringModel)):
 			print stringModel[i]
+		print "Ongoing Incidents: ", len(self.ongoingIncidents), "Resolved Incidents: ", len(self.resolvedIncidents), "\n"
 
 
 	#Recieve Data, Move Trucks
@@ -326,7 +327,7 @@ class dataDispenser():
 		self.end = day+timerange
 		#self.data is a list with 8 elements: the lists of data for each year
 		for fileName in dataFileNames:
-			self.timeStep = 60
+			self.timeStep = 600
 			self.dataFile = open(fileName,'rU')
 			first = 1
 			for line in self.dataFile:
@@ -404,11 +405,10 @@ class dataDispenser():
 			passList = []
 			while dataMapper[i] <= timeStepNumber:
 				passList.append(self.data[i][1])
-				print i
 				i+=1
 				if i == len(dataMapper):
 					break
-
+			print "Timestep: ", timeStepNumber
 			modelInstance.receiveNextData(passList, timeStepNumber)
 			timeStepNumber+=1
 		print modelInstance.totalError
