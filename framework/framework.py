@@ -31,7 +31,7 @@ class Model():
 	def __init__(self):
 		self.setup = 0
 		self.numTrucks = 3  # must be >= 1
-		self.stepSize = 5
+		self.stepSize = 1
 		self.truckPos = []
 		self.ongoingIncidents = {}
 		self.allIncidents = {}
@@ -151,8 +151,20 @@ class Model():
 
 		vertSteps = self.gridVerticleGranularity
 		horizontalSteps = self.gridHorizontalGranularity
-		deltaLat = abs(corners[0][0]-corners[1][0]) / vertSteps
-		deltaLong = abs(corners[0][1]-corners[1][1]) / horizontalSteps
+		deltaLat = abs(corners[0][0]-corners[1][0]) 
+		deltaLong = abs(corners[0][1]-corners[1][1]) 
+		grid = []
+		for r in xrange(0,self.gridVerticleGranularity):
+			tempRow = []
+			for c in xrange(0,self.gridHorizontalGranularity):
+				curLat = corners[0][0] - r*(deltaLat/(self.gridVerticleGranularity-1))
+				curLong = corners[0][1] + c*(deltaLong/(self.gridHorizontalGranularity-1))
+				tempRow.append((curLat,curLong))
+			grid.append(tempRow)
+		return grid
+
+		'''
+		print deltaLat,deltaLong
 		grid = []
 		curLat = corners[0][0]
 		while curLat > corners[1][0]:
@@ -163,30 +175,61 @@ class Model():
 				curLong += deltaLong
 			curLat -= deltaLat
 			grid.append(tempRow)
-		return grid
+		#print grid\
+		raise Exception('here')
+		'''
 
 
 	def whereOnGrid(self,lat,longd):
+
 		curRow = 0
 		curCol = 0
-		if lat < self.grid[len(self.grid)-1][curCol]:
+		if lat < self.grid[len(self.grid)-1][curCol][0]:
+			print '1'
 			curRow = len(self.grid)-1
 		else:
-			while lat < self.grid[curRow][curCol]:
+			while lat < self.grid[curRow][curCol][0]:
+				print '2'
 				curRow += 1
-		if longd > self.grid[curRow][len(self.grid[curRow])-1]:
+		if longd > self.grid[curRow][len(self.grid[curRow])-1][1]:
+			print '3'
 			curCol = len(self.grid[curRow])-1
 		else:
-			while longd > self.grid[curRow][curCol]:
+			while longd > self.grid[curRow][curCol][1]:
+				print '4'
 				curCol += 1
+		print 'test:'
+		print lat,longd,curRow,curCol
 		return (curRow,curCol)
 
+	def baselineGetAction(self, currentState):
+		actionList = []
+		for i in xrange(0,len(currentState.truckPos)):
+			if len(currentState.incidentPos.keys()) > i:
+				#print currentState.incidentPos[currentState.incidentPos.keys()[i]]
+				actionList.append(currentState.incidentPos[currentState.incidentPos.keys()[i]])
+			else:
+				r = random.randint(0,self.gridHorizontalGranularity-1)
+				c = random.randint(0,self.gridVerticleGranularity-1)
+				actionList.append((r,c))
+		return tuple(actionList)
 
 	def baselineMoveTrucks(self, listOfData):
+		'''
+		action = self.baselineGetAction(currentState)
 		for i in xrange(0,self.numTrucks):
 			newGridRow = self.truckPos[i][0] + random.randint(-self.stepSize,self.stepSize)
 			newGridCol = self.truckPos[i][1] + random.randint(-self.stepSize,self.stepSize)
+			newGridRow = min(self.gridHorizontalGranularity-1, max(0,newGridRow))
+			newGridCol = min(self.gridVerticleGranularity-1, max(0,newGridCol))
 			self.truckPos[i] = (newGridRow, newGridCol)
+		'''
+		currentState = self.generateCurrentState()
+		action = self.baselineGetAction(currentState)
+		self.updateTruckLocations(action)
+		self.resolveIncidents()	
+		newState = self.generateCurrentState()
+		reward = self.rewardFuntion(currentState, newState)
 
 
 	def featureExtractor(self,state,action):
@@ -294,15 +337,26 @@ class Model():
 
 	def compileResults(self):
 		#Calculate Average Response Time
+
 		total = 0
 		response_times = []
+		response_times2 = []
+		myLength = len(self.resolvedIncidents)/2.0
+		count = 0
 		for incident_key, (t1, loc1) in self.resolvedIncidents.iteritems():
+			count += 1
 			t2, loc2 = self.allIncidents[incident_key]
 			response_times.append(t1-t2)
+			if count > myLength:
+				response_times2.append(t1-t2)
 		print "============= RESULTS =============="
 		print "Average Response Time: ", sum(response_times) / float(len(response_times))
 		print "Max Response Time: ", max(response_times)
 		print "Min Response Time: ", min(response_times)
+		print "====== RESULTS for second half ====="
+		print "Average Response Time 2nd half: ", sum(response_times2) / float(len(response_times2))
+		print "Max Response Time 2nd half: ", max(response_times2)
+		print "Min Response Time 2nd half: ", min(response_times2)
 		respTimes = open('responseTimes.txt', 'w')
 		for item in response_times:
   			respTimes.write("%s\n" % item)
@@ -312,6 +366,7 @@ class Model():
 	def receiveNextData(self, listOfData, timestep):
 		self.updateModel(listOfData, timestep)
 		self.qlearnMoveTrucks(listOfData)
+		#self.baselineMoveTrucks(listOfData)
 		self.printModel()
 		
 	
