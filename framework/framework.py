@@ -297,11 +297,22 @@ class Model():
 			self.ongoingIncidents[incident_key] = location
 			self.allIncidents[incident_key] = (self.currentTime, location)
 
+	def printModel(self):
+		baseString = "O"*self.gridVerticleGranularity
+		stringModel = [baseString for i in range(self.gridHorizontalGranularity)]
+		for i,(t_row,t_col) in enumerate(self.truckPos):
+			stringModel[t_row][t_col] = str(i)
+		for (i_row,i_col) in self.ongoingIncidents.values():
+			stringModel[i_row][i_col] = "X"
+		for i in range(len(stringModel)):
+			print stringModel[i]
+
 
 	#Recieve Data, Move Trucks
 	def receiveNextData(self, listOfData, timestep):
 		self.updateModel(listOfData, timestep)
 		self.qlearnMoveTrucks(listOfData)
+		self.printModel()
 		
 	
 
