@@ -124,31 +124,12 @@ class Model():
 			(directive_row, directive_col) = truckDirectives[i]
 			dy = directive_row - t_row
 			dx = directive_col - t_col
-			if (dx == 0 and dy == 0):
-				self.truckPos[i] = (t_row, t_col)
-			elif dx >= 0:
-				if(-.5*dx <= dy and dy <= .5*dx):
-					self.truckPos[i] =(t_row, t_col +1)
-				elif(-2*dx <= dy and dy <= -.5*dx):
-					self.truckPos[i] = (t_row-1, t_col+1)
-				elif(.5*dx <= dy and dy <= 2*dx):
-					self.truckPos[i] = (t_row+1, t_col+1)
-				elif(2*dx >= dy):
-					self.truckPos[i] = (t_row-1, t_col)
-				elif(dy >= -2*dx):
-					self.truckPos[i] = (t_row+1, t_col)
-			elif dx <= 0:
-				if(-.5*dx >= dy and dy >= .5*dx):
-					self.truckPos[i] = (t_row, t_col -1)
-				elif(.5*dx >= dy and dy >= 2*dx):
-					self.truckPos[i] = (t_row-1, t_col-1)
-				elif(-2*dx >= dy and dy >= -.5*dx):
-					self.truckPos[i] = (t_row+1, t_col-1)
-				elif(2*dx <= dy):
-					self.truckPos[i] = (t_row+1, t_col)
-				elif(dy <= -2*dx):
-					self.truckPos[i] = (t_row-1, t_col)
-
+			def sign(x):
+				return (x>0) - (x<0)
+			move_x = sign(dx)
+			move_y = sign(dy)
+			self.truckPos[i] = (t_row + move_y, t_col + move_x)
+		
 	#Resolve and update incidents
 	def resolveIncidents(self):
 		for incident_key, incident_location in dict(self.ongoingIncidents).iteritems():
