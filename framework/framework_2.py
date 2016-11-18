@@ -1,3 +1,6 @@
+#framework_2 does not make any active routing decisions. All are made by Qlearning.
+
+
 import datetime
 import random
 #import geocoder
@@ -88,16 +91,10 @@ class Model():
 					rincident = self.ongoingIncidents.values()[rIndex]
 					point_list.append(rincident)
 			'''
-			ongoingList = self.ongoingIncidents.keys()
-			#print ongoingList
 			for i in xrange(0,len(self.truckPos)):
-				if len(ongoingList) > i:
-					point_list.append(self.ongoingIncidents[ongoingList[i]])
-				else:
-					rrow = random.randint(0,self.gridVerticleGranularity-1)
-					rcol = random.randint(0,self.gridHorizontalGranularity-1)
-					point_list.append((rrow, rcol))
-			#print point_list
+				rrow = random.randint(0,self.gridVerticleGranularity-1)
+				rcol = random.randint(0,self.gridHorizontalGranularity-1)
+				point_list.append((rrow, rcol))
 
 			#Greedily assign each point to the nearest truck
 			assignment_list = [-1]*len(self.truckPos)
@@ -199,15 +196,10 @@ class Model():
 		point_list = []
 		masterList = []
 
-		ongoingList = self.ongoingIncidents.keys()
-		#print ongoingList
 		for i in xrange(0,len(self.truckPos)):
-			if len(ongoingList) > i:
-				point_list.append(self.ongoingIncidents[ongoingList[i]])
-			else:
-				rrow = random.randint(0,self.gridVerticleGranularity-1)
-				rcol = random.randint(0,self.gridHorizontalGranularity-1)
-				point_list.append((rrow, rcol))
+			rrow = random.randint(0,self.gridVerticleGranularity-1)
+			rcol = random.randint(0,self.gridHorizontalGranularity-1)
+			point_list.append((rrow, rcol))
 		assignment_list = [-1]*len(self.truckPos)
 		tempTruckList = copy.deepcopy(self.truckPos)
 		for j, point in enumerate(point_list):
@@ -372,8 +364,10 @@ class Model():
 			t2, loc2 = self.allIncidents[incident_key]
 			if self.resolvedtrainortest[incident_key] == 'training':
 				response_times.append(t1-t2)
-			else:
+			elif self.resolvedtrainortest[incident_key] == 'testing':
 				response_times2.append(t1-t2)
+		print response_times
+		print response_times2
 		print "============= RESULTS =============="
 		print "Average Response Time: ", sum(response_times) / float(len(response_times))
 		print "Max Response Time: ", max(response_times)
@@ -393,24 +387,24 @@ class Model():
 		#self.qlearnMoveTrucks(listOfData)
 		'''
 		============= RESULTS ==============
-		Average Response Time:  1.21827411168
-		Max Response Time:  14
+		Average Response Time:  98.3962264151
+		Max Response Time:  2408
 		Min Response Time:  0
 		====== RESULTS for second half =====
-		Average Response Time 2nd half:  1.40456989247
-		Max Response Time 2nd half:  14
+		Average Response Time 2nd half:  116.27739726
+		Max Response Time 2nd half:  3347
 		Min Response Time 2nd half:  0
 		'''
 
 		self.baselineMoveTrucks(listOfData)
-
 		'''
-		Average Response Time:  1.51903553299
-		Max Response Time:  8
+		============= RESULTS ==============
+		Average Response Time:  276.996855346
+		Max Response Time:  1999
 		Min Response Time:  0
 		====== RESULTS for second half =====
-		Average Response Time 2nd half:  1.53162853297
-		Max Response Time 2nd half:  12
+		Average Response Time 2nd half:  189.436619718
+		Max Response Time 2nd half:  2547
 		Min Response Time 2nd half:  0
 		'''
 		self.printModel()
@@ -516,8 +510,14 @@ class dataDispenser():
 			print "Timestep: ", timeStepNumber
 			modelInstance.receiveNextData(passList, timeStepNumber)
 			timeStepNumber+=1
+		while len(modelInstance.ongoingIncidents) > 4:
+			if timeStepNumber > modelInstance.expectedTimeSteps*2:
+				break
+			modelInstance.receiveNextData([], timeStepNumber)
+			timeStepNumber+=1
+
 		modelInstance.compileResults()
 
 
-dd = dataDispenser(datetime.datetime(9,1,1),datetime.timedelta(5))
+dd = dataDispenser(datetime.datetime(9,1,2),datetime.timedelta(2))
 dd.dispenseData()
