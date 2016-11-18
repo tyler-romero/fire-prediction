@@ -30,7 +30,7 @@ class Model():
 	'''
 	def __init__(self):
 		self.setup = 0
-		self.numTrucks = 2  # must be >= 1
+		self.numTrucks = 9  # must be >= 1
 		self.stepSize = 5
 		self.truckPos = []
 		self.ongoingIncidents = {}
@@ -43,8 +43,8 @@ class Model():
 		self.currentTime = -1
 		self.qlearn = mdp.QLearningAlgorithm(self.generateActions, 1, self.featureExtractor)
 		for i in xrange(0,self.numTrucks):
-			gridRow = random.randint(0,len(self.grid))
-			gridCol = random.randint(0,len(self.grid[0]))
+			gridRow = random.randint(0,len(self.grid)-1)
+			gridCol = random.randint(0,len(self.grid[0])-1)
 			self.truckPos.append((gridRow,gridCol))
 		print self.truckPos
 
@@ -68,7 +68,7 @@ class Model():
 	#		- Including the previous best action
 	#		- (Randomly assigning each truck to an incident)*1000
 	def generateActions(self, state):
-		thresh = 0	#Chance of inserting an incident
+		thresh = 0.4	#Chance of inserting an incident
 		masterList = []
 		for _ in range(100):
 			#For each truck, insert a point
@@ -79,7 +79,7 @@ class Model():
 					rcol = random.randint(0,self.gridHorizontalGranularity-1)
 					point_list.append((rrow, rcol))
 				else:
-					rIndex = random.randint(0, len(self.ongoingIncidents))
+					rIndex = random.randint(0, len(self.ongoingIncidents)-1)
 					rincident = self.ongoingIncidents.values()[rIndex]
 					point_list.append(rincident)
 
@@ -104,56 +104,43 @@ class Model():
 	#Take an action and move the trucks accordingly
 	def updateTruckLocations(self, truckDirectives):
 		#Action should be a list of tuples where action[i] = (ith truck directive x, ith truck directive y)
-		print "Truck Pos", self.truckPos
-		print "TD", truckDirectives
 		for i, (t_row, t_col) in enumerate(self.truckPos):
 			(directive_row, directive_col) = truckDirectives[i]
 			dy = directive_row - t_row
 			dx = directive_col - t_col
 			if (dx == 0 and dy == 0):
-				print "do nothing" 
 				self.truckPos[i] = (t_row, t_col)
 			elif dx >= 0:
 				if(-.5*dx <= dy and dy <= .5*dx):
-					print "move right"
 					self.truckPos[i] =(t_row, t_col +1)
 				elif(-2*dx <= dy and dy <= -.5*dx):
-					print"move right and up"
 					self.truckPos[i] = (t_row-1, t_col+1)
 				elif(.5*dx <= dy and dy <= 2*dx):
-					print"move right and down"
 					self.truckPos[i] = (t_row+1, t_col+1)
 				elif(2*dx >= dy):
-					print"move up"
 					self.truckPos[i] = (t_row-1, t_col)
 				elif(dy >= -2*dx):
-					print"move down"
 					self.truckPos[i] = (t_row+1, t_col)
 			elif dx <= 0:
 				if(-.5*dx >= dy and dy >= .5*dx):
-					print"move left"
 					self.truckPos[i] = (t_row, t_col -1)
 				elif(.5*dx >= dy and dy >= 2*dx):
-					print"move left and up"
 					self.truckPos[i] = (t_row-1, t_col-1)
 				elif(-2*dx >= dy and dy >= -.5*dx):
-					print"move left and down"
 					self.truckPos[i] = (t_row+1, t_col-1)
 				elif(2*dx <= dy):
-					print"move down"
 					self.truckPos[i] = (t_row+1, t_col)
 				elif(dy <= -2*dx):
-					print"move up"
 					self.truckPos[i] = (t_row-1, t_col)
-		print "Truck Pos After", self.truckPos
 
 	#Resolve and update incidents
 	def resolveIncidents(self):
 		for incident_key, incident_location in dict(self.ongoingIncidents).iteritems():
 			for truck in self.truckPos:
 				if incident_location == truck:
-					del self.ongoingIncidents[incident_key]
-					self.resolvedIncidents[incident_key] = (self.currentTime, incident_location)
+					if self.ongoingIncidents.has_key(incident_key):
+						del self.ongoingIncidents[incident_key]
+						self.resolvedIncidents[incident_key] = (self.currentTime, incident_location)
 
 
 	def getGrid(self):
@@ -287,7 +274,7 @@ class Model():
 		#self.totalError += self.minDistFromIncident(listOfData)
 		self.currentTime = timestep
 		for datapoint in listOfData:
-			incident_key = datapoint[2]
+			incident_key = datapoint[1]
 			lati = float(datapoint[4].split('_')[0])
 			lond = float(datapoint[4].split('_')[1])
 			location = self.whereOnGrid(lati, lond)
@@ -296,7 +283,6 @@ class Model():
 
 	def printModel(self):
 		stringModel = [["_"  for i in range(self.gridHorizontalGranularity)] for j in range(self.gridVerticleGranularity)]
-		print "Print TruckPos", self.truckPos
 		for i,(t_row,t_col) in enumerate(self.truckPos):
 			stringModel[t_row][t_col] = str(i+1)
 		for (i_row,i_col) in self.ongoingIncidents.values():
@@ -304,6 +290,22 @@ class Model():
 		for i in range(len(stringModel)):
 			print stringModel[i]
 		print "Ongoing Incidents: ", len(self.ongoingIncidents), "Resolved Incidents: ", len(self.resolvedIncidents), "\n"
+
+
+	def compileResults(self):
+		#Calculate Average Response Time
+		total = 0
+		response_times = []
+		for incident_key, (t1, loc1) in self.resolvedIncidents.iteritems():
+			t2, loc2 = self.allIncidents[incident_key]
+			response_times.append(t1-t2)
+		print "============= RESULTS =============="
+		print "Average Response Time: ", sum(response_times) / float(len(response_times))
+		print "Max Response Time: ", max(response_times)
+		print "Min Response Time: ", min(response_times)
+		respTimes = open('responseTimes.txt', 'w')
+		for item in response_times:
+  			respTimes.write("%s\n" % item)
 
 
 	#Recieve Data, Move Trucks
@@ -327,7 +329,7 @@ class dataDispenser():
 		self.end = day+timerange
 		#self.data is a list with 8 elements: the lists of data for each year
 		for fileName in dataFileNames:
-			self.timeStep = 600
+			self.timeStep = 60
 			self.dataFile = open(fileName,'rU')
 			first = 1
 			for line in self.dataFile:
@@ -411,7 +413,7 @@ class dataDispenser():
 			print "Timestep: ", timeStepNumber
 			modelInstance.receiveNextData(passList, timeStepNumber)
 			timeStepNumber+=1
-		print modelInstance.totalError
+		modelInstance.compileResults()
 
 
 dd = dataDispenser(datetime.datetime(9,1,1),datetime.timedelta(1))
