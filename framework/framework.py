@@ -3,6 +3,7 @@ import random
 import geocoder
 import mdp
 import math
+import sys
 
 
 
@@ -65,7 +66,38 @@ class Model():
 	#		- Including the previous best action
 	#		- (Randomly assigning each truck to an incident)*1000
 	def generateActions(self, state):
-		raise("Implement This")
+		thresh = 0.3	#Chance of inserting an incident
+		masterList = []
+		for _ in range(100):
+			#For each truck, insert a point
+			point_list = []
+			for truck in self.truckPos:
+				if random.random() > thresh or len(self.ongoingIncidents) is 0:
+					rrow = random.randint(0,self.gridVerticleGranularity-1)
+					point_list.append((rrow, rcol))
+				else:
+					rIndex = random.randint(0, len(self.ongoingIncidents))
+					rincident = self.ongoingIncidents.values()[rIndex]
+					point_list.append(rincident)
+
+			#Greedily assign each point to the nearest truck
+			assignment_list = [-1]*len(self.truckPos)
+			for j, point in enumerate(point_list):
+				minDist = sys.maxint
+				minIndex = 0
+				tempTruckList = self.truckPos
+				for i, truck in enumerate(tempTruckList):
+					dist = manhattanDistance(truck, point):
+					if dist < minDist:
+						minDist = dist
+						minIndex = i
+				assignment_list[minIndex] = point
+				del tempTruckList[minIndex]
+			masterList.append(assignment_list)
+		return masterList
+				
+
+
 
 
 	#Take an action and move the trucks accordingly
