@@ -30,11 +30,14 @@ class Model():
 		self.numTrucks = 5  # must be >= 1
 		self.stepSize = 5
 		self.truckPos = []
-		self.incidentPos = []
+		self.ongoingIncidents = {}
+		self.allIncidents = {}
+		self.resolvedIncidents = {}
 		self.gridHorizontalGranularity = 100 # must be > 1
 		self.gridVerticleGranularity = 100 # must be > 1
 		self.grid = self.getGrid()
 		self.totalError = 0
+		self.currentTime = -1
 		self.qlearn = mdp.QLearningAlgorithm(self.generateActions, 1, self.featureExtractor)
 		for i in xrange(0,self.numTrucks):
 			gridRow = random.randint(0,len(self.grid))
@@ -52,7 +55,7 @@ class Model():
 
 	#Returns the current state. Which is just a compact representation of the model
 	def generateCurrentState(self):
-		return self.State(self.gridHorizontalGranularity, self.gridVerticleGranularity, self.truckPos, self.incidentPos)
+		return self.State(self.gridHorizontalGranularity, self.gridVerticleGranularity, self.truckPos, self.ongoingIncidents)
 
 
 	#returns a list of actions based on the current state
@@ -60,7 +63,7 @@ class Model():
 	#		- (randomly sampling and assigning each truck to the nearest sampled location)*1000
 	#		- Including the previous best action
 	#		- (Randomly assigning each truck to an incident)*1000
-	def generateActions(self,state):
+	def generateActions(self, state):
 		raise("Implement This")
 
 
@@ -71,10 +74,11 @@ class Model():
 
 	#Resolve and update incidents
 	def resolveIncidents(self):
-		for incident in list(self.incidentPos):
+		for incident_key, incident_location in dict(self.ongoingIncidents).iteritems():
 			for truck in self.truckPos:
-				if incident == truck:
-					self.incidentPos.remove(incident)
+				if incident_location == truck:
+					del self.ongoingIncidents[incident_key]
+					self.resolvedIncidents[incident_key] = (self.currentTime, incident_location)
 
 
 	def getGrid(self):
@@ -146,13 +150,13 @@ class Model():
 
 		#sum of distances from incidents to nearest truck
 		totalMin = 0
-		numIncidents = len(self.incidentPos)
+		numIncidents = len(self.ongoingIncidents)
 		for incident in xrange(0,numIncidents):
 			myMin = self.gridHorizontalGranularity+self.gridVerticleGranularity
 			minPos = -1
 			for truck in xrange(0,self.numTrucks):
-				if self.manhattanDistance(self.truckPos[truck],self.incidentPos[incident]) < myMin:
-					myMin = self.manhattanDistance(self.truckPos[truck],self.incidentPos[incident])
+				if self.manhattanDistance(self.truckPos[truck],self.ongoingIncidents[incident]) < myMin:
+					myMin = self.manhattanDistance(self.truckPos[truck],self.ongoingIncidents[incident])
 					minPos = other_truck
 			totalMin += myMin
 		if numIncidents == 0:
@@ -210,17 +214,21 @@ class Model():
 		return totalDist
 
 
-	def updateModel(self, listOfData):
+	def updateModel(self, listOfData, timestep):
 		#self.totalError += self.minDistFromIncident(listOfData)
+		self.currentTime = timestep
 		for datapoint in listOfData:
+			incident_key = datapoint[2]
 			lati = float(datapoint[4].split('_')[0])
 			lond = float(datapoint[4].split('_')[1])
-			self.incidentPos.append(whereOnGrid(lati, lond))
+			location = whereOnGrid(lati, lond)
+			self.ongoingIncidents[incident_key] = location
+			self.allIncidents[incident_key] = (self.currentTime, location)
 
 
 	#Recieve Data, Move Trucks
-	def receiveNextData(self, listOfData):
-		self.updateModel(listOfData)
+	def receiveNextData(self, listOfData, timestep):
+		self.updateModel(listOfData, timestep)
 		self.qlearnMoveTrucks(listOfData)
 		
 	
@@ -321,7 +329,7 @@ class dataDispenser():
 				if i == len(dataMapper):
 					break
 
-			modelInstance.receiveNextData(passList)
+			modelInstance.receiveNextData(passList, timeStepNumber)
 			timeStepNumber+=1
 		print modelInstance.totalError
 
