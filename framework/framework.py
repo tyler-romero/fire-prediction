@@ -73,7 +73,7 @@ class Model():
 	def generateActions(self, state):
 		thresh = 0.4	#Chance of inserting an incident
 		masterList = []
-		for _ in range(100):
+		for _ in range(500):
 			#For each truck, insert a point
 			point_list = []
 			'''
@@ -115,6 +115,7 @@ class Model():
 				assignment_list[minIndex] = point
 				tempTruckList[minIndex] = None
 			masterList.append(assignment_list)
+		#TODO: Append option for trucks to not move. Append same action as last time
 		return masterList
 
 	#Take an action and move the trucks accordingly
@@ -241,6 +242,8 @@ class Model():
 		#the action? I could be doing this wrong but I think this is right
 		results = []
 
+		#TODO: Include time of day as a feature
+
 		#sum of distance from truck to nearest truck
 		totalMin = 0
 		for truck in xrange(0,self.numTrucks):
@@ -359,10 +362,10 @@ class Model():
 		print "Average Response Time: ", sum(response_times) / float(len(response_times))
 		print "Max Response Time: ", max(response_times)
 		print "Min Response Time: ", min(response_times)
-		print "====== RESULTS for second half ====="
-		print "Average Response Time 2nd half: ", sum(response_times2) / float(len(response_times2))
-		print "Max Response Time 2nd half: ", max(response_times2)
-		print "Min Response Time 2nd half: ", min(response_times2)
+		print "====== RESULTS for SECOND half ====="
+		print "Average Response Time: ", sum(response_times2) / float(len(response_times2))
+		print "Max Response Time: ", max(response_times2)
+		print "Min Response Time: ", min(response_times2)
 		respTimes = open('responseTimes.txt', 'w')
 		for item in response_times:
   			respTimes.write("%s\n" % item)
@@ -371,7 +374,7 @@ class Model():
 	#Recieve Data, Move Trucks
 	def receiveNextData(self, listOfData, timestep):
 		self.updateModel(listOfData, timestep)
-		#self.qlearnMoveTrucks(listOfData)
+		self.qlearnMoveTrucks(listOfData)
 		'''
 		============= RESULTS ==============
 		Average Response Time:  1.21827411168
@@ -383,7 +386,7 @@ class Model():
 		Min Response Time 2nd half:  0
 		'''
 
-		self.baselineMoveTrucks(listOfData)
+		#self.baselineMoveTrucks(listOfData)
 
 		'''
 		Average Response Time:  1.51903553299
@@ -394,7 +397,7 @@ class Model():
 		Max Response Time 2nd half:  12
 		Min Response Time 2nd half:  0
 		'''
-		self.printModel()
+		#self.printModel()
 		if timestep > self.expectedTimeSteps/2:
 			self.trainingOrTesting = 'testing'
 			self.qlearn.explorationProb = 0
