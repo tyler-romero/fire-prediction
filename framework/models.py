@@ -115,6 +115,7 @@ class QlearningModel(genericModel):
 		#masterList.append(state.truckPos)	#This tends to make it much worse
 
 		#TODO: Append action same as last turn
+		#TODO: Append do nothing action same as last turn
 		return masterList
 
 	def featureExtractor(self,state,action):
