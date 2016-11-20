@@ -1,21 +1,30 @@
+import utilities
+import models
 import datetime
 import random
-#import geocoder
-import mdp
 import math
-import sys
 import copy
 
 
 
-class Model():
+class State():
+	def __init__(self, row, col, tm, tPos, iPos):
+		self.ncol = col
+		self.nrow = row
+		self.timestep = tm
+		self.truckPos = tPos
+		self.incidentPos = iPos
+		
+
+
+class Simulation():
 	'''
 
-	The model gets instantiated by a data dispenser, which dispenses data to it at a fixed timestep.
-	The model's job is to hold information about where trucks are, and decide where to send each truck
+	The simulation gets instantiated by a data dispenser, which dispenses data to it at a fixed timestep.
+	The simulation's job is to hold information about where trucks are, and decide where to send each truck
 	at each timestep. 
 
-	The way I have structured the model is by using a grid of longitude/latitude data. the granularity
+	The way I have structured the simulation is by using a grid of longitude/latitude data. the granularity
 	of the grid can be set in the initialization function. Each truck is at a certain point, and can
 	travel one grid space per timestep (this is a simplifying assumption that isn't necessarily close
 	to reality but we can change this as we work on the project).
@@ -28,23 +37,21 @@ class Model():
 
 
 	'''
-	def __init__(self,timeStepsIncoming):
+	def __init__(self, model, timeStepsIncoming):
+		self.model = model	#The model we are simulating
 		self.expectedTimeSteps = timeStepsIncoming #Added this to change the exploration prob halfway through
 		self.setup = 0
-		self.numTrucks = 3  # must be >= 1
+		self.numTrucks = 1  # must be >= 1
 		self.stepSize = 1
 		self.truckPos = []
 		self.ongoingIncidents = {}
 		self.allIncidents = {}
 		self.resolvedIncidents = {}
-		self.resolvedtrainortest = {}
 		self.gridHorizontalGranularity = 10 # must be > 1
 		self.gridVerticleGranularity = 10 # must be > 1
 		self.grid = self.getGrid()
 		self.totalError = 0
 		self.currentTime = -1
-		self.trainingOrTesting = 'training'
-		self.qlearn = mdp.QLearningAlgorithm(self.generateActions, 1, self.featureExtractor)
 		for i in xrange(0,self.numTrucks):
 			gridRow = random.randint(0,len(self.grid)-1)
 			gridCol = random.randint(0,len(self.grid[0])-1)
@@ -52,93 +59,10 @@ class Model():
 		print self.truckPos
 
 
-	class State():
-		def __init__(self, col, row, tPos, iPos):
-			self.cols = col
-			self.rows = row
-			self.truckPos = tPos
-			self.incidentPos = iPos
-
-
 	#Returns the current state. Which is just a compact representation of the model
 	def generateCurrentState(self):
-		return self.State(self.gridHorizontalGranularity, self.gridVerticleGranularity, self.truckPos, self.ongoingIncidents)
+		return State(self.gridVerticleGranularity, self.gridHorizontalGranularity, self.currentTime, self.truckPos, self.ongoingIncidents)
 
-
-	#returns a list of actions based on the current state
-	#	We discussed doing this by:
-	#		- (randomly sampling and assigning each truck to the nearest sampled location)*1000
-	#		- Including the previous best action
-	#		- (Randomly assigning each truck to an incident)*1000
-	def generateActions(self, state):
-		thresh = 0.4	#Chance of inserting an incident
-		masterList = []
-		for _ in range(500):
-			#For each truck, insert a point
-			point_list = []
-			'''
-			for truck in self.truckPos:
-				
-				if random.random() > thresh or len(self.ongoingIncidents) is 0:
-					rrow = random.randint(0,self.gridVerticleGranularity-1)
-					rcol = random.randint(0,self.gridHorizontalGranularity-1)
-					point_list.append((rrow, rcol))
-				else:
-					rIndex = random.randint(0, len(self.ongoingIncidents)-1)
-					rincident = self.ongoingIncidents.values()[rIndex]
-					point_list.append(rincident)
-			'''
-			ongoingList = self.ongoingIncidents.keys()
-			#print ongoingList
-			for i in xrange(0,len(self.truckPos)):
-				if len(ongoingList) > i:
-					point_list.append(self.ongoingIncidents[ongoingList[i]])
-				else:
-					rrow = random.randint(0,self.gridVerticleGranularity-1)
-					rcol = random.randint(0,self.gridHorizontalGranularity-1)
-					point_list.append((rrow, rcol))
-			#print point_list
-
-			#Greedily assign each point to the nearest truck
-			assignment_list = [-1]*len(self.truckPos)
-			tempTruckList = copy.deepcopy(self.truckPos)
-			for j, point in enumerate(point_list):
-				minDist = sys.maxint
-				minIndex = 0
-				for i, truck in enumerate(tempTruckList):
-					if truck is None:
-						continue
-					dist = self.manhattanDistance(truck, point)
-					if dist < minDist:
-						minDist = dist
-						minIndex = i
-				assignment_list[minIndex] = point
-				tempTruckList[minIndex] = None
-			masterList.append(assignment_list)
-		#TODO: Append option for trucks to not move. Append same action as last time
-		return masterList
-
-	#Take an action and move the trucks accordingly
-	def updateTruckLocations(self, truckDirectives):
-		#Action should be a list of tuples where action[i] = (ith truck directive x, ith truck directive y)
-		for i, (t_row, t_col) in enumerate(self.truckPos):
-			(directive_row, directive_col) = truckDirectives[i]
-			dy = directive_row - t_row
-			dx = directive_col - t_col
-			def sign(x):
-				return (x>0) - (x<0)
-			move_x = sign(dx)
-			move_y = sign(dy)
-			self.truckPos[i] = (t_row + move_y, t_col + move_x)
-		
-	#Resolve and update incidents
-	def resolveIncidents(self):
-		for incident_key, incident_location in dict(self.ongoingIncidents).iteritems():
-			for truck in self.truckPos:
-				if incident_location == truck:
-					if self.ongoingIncidents.has_key(incident_key):
-						del self.ongoingIncidents[incident_key]
-						self.resolvedIncidents[incident_key] = (self.currentTime, incident_location)
 
 	def getGrid(self):
 		#grid[0][0] is the northwest corner of sanDiego and grid[n][m] is the southeast.
@@ -162,9 +86,7 @@ class Model():
 
 
 	def whereOnGrid(self,lat,longd):
-
-		curRow = 0
-		curCol = 0
+		(curRow, curCol) = (0, 0)
 		if lat < self.grid[len(self.grid)-1][curCol][0]:
 			curRow = len(self.grid)-1
 		else:
@@ -177,127 +99,6 @@ class Model():
 				curCol += 1
 		return (curRow,curCol)
 
-	def baselineGetAction(self, currentState):
-		point_list = []
-		masterList = []
-
-		ongoingList = self.ongoingIncidents.keys()
-		#print ongoingList
-		for i in xrange(0,len(self.truckPos)):
-			if len(ongoingList) > i:
-				point_list.append(self.ongoingIncidents[ongoingList[i]])
-			else:
-				rrow = random.randint(0,self.gridVerticleGranularity-1)
-				rcol = random.randint(0,self.gridHorizontalGranularity-1)
-				point_list.append((rrow, rcol))
-		assignment_list = [-1]*len(self.truckPos)
-		tempTruckList = copy.deepcopy(self.truckPos)
-		for j, point in enumerate(point_list):
-			minDist = sys.maxint
-			minIndex = 0
-			for i, truck in enumerate(tempTruckList):
-				if truck is None:
-					continue
-				dist = self.manhattanDistance(truck, point)
-				if dist < minDist:
-					minDist = dist
-					minIndex = i
-			assignment_list[minIndex] = point
-			tempTruckList[minIndex] = None
-		return assignment_list
-		'''
-		actionList = []
-		for i in xrange(0,len(currentState.truckPos)):
-			if len(currentState.incidentPos.keys()) > i:
-				#print currentState.incidentPos[currentState.incidentPos.keys()[i]]
-				actionList.append(currentState.incidentPos[currentState.incidentPos.keys()[i]])
-			else:
-				r = random.randint(0,self.gridHorizontalGranularity-1)
-				c = random.randint(0,self.gridVerticleGranularity-1)
-				actionList.append((r,c))
-		return tuple(actionList)
-		'''
-	def baselineMoveTrucks(self, listOfData):
-		'''
-		action = self.baselineGetAction(currentState)
-		for i in xrange(0,self.numTrucks):
-			newGridRow = self.truckPos[i][0] + random.randint(-self.stepSize,self.stepSize)
-			newGridCol = self.truckPos[i][1] + random.randint(-self.stepSize,self.stepSize)
-			newGridRow = min(self.gridHorizontalGranularity-1, max(0,newGridRow))
-			newGridCol = min(self.gridVerticleGranularity-1, max(0,newGridCol))
-			self.truckPos[i] = (newGridRow, newGridCol)
-		'''
-		currentState = self.generateCurrentState()
-		action = self.baselineGetAction(currentState)
-		self.updateTruckLocations(action)
-		self.resolveIncidents()	
-		newState = self.generateCurrentState()
-		reward = self.rewardFuntion(currentState, newState)
-
-
-	def featureExtractor(self,state,action):
-		#The way I am doing this is, instead of how in blackjack where we did (state,action) pairs
-		#as the feature key, now I am doing (1, some_helpful_value) -- the one so that it is included
-		#for every state no matter what's happening, and the value to hopefully kind of represent
-		#the action? I could be doing this wrong but I think this is right
-		results = []
-
-		#TODO: Include time of day as a feature
-
-		#sum of distance from truck to nearest truck
-		totalMin = 0
-		for truck in xrange(0,self.numTrucks):
-			myMin = self.gridHorizontalGranularity+self.gridVerticleGranularity
-			minPos = -1
-			for other_truck in xrange(0,self.numTrucks):
-				if truck == other_truck:
-					continue
-				#print truck, other_truck, self.truckPos, self.numTrucks
-				if self.manhattanDistance(self.truckPos[truck],self.truckPos[other_truck]) < myMin:
-					myMin = self.manhattanDistance(self.truckPos[truck],self.truckPos[other_truck])
-					minPos = other_truck
-			totalMin += myMin
-		keyTuple = (1,('truck',totalMin/float(self.numTrucks)))
-		results.append((keyTuple,1))
-
-		#sum of distances from incidents to nearest truck
-		totalMin = 0
-		numIncidents = len(self.ongoingIncidents)
-		for key, incident in self.ongoingIncidents.iteritems():
-			myMin = self.gridHorizontalGranularity+self.gridVerticleGranularity
-			minPos = -1
-			for truck in xrange(0,self.numTrucks):
-				if self.manhattanDistance(self.truckPos[truck], incident) < myMin:
-					myMin = self.manhattanDistance(self.truckPos[truck],incident)
-					minPos = other_truck
-			totalMin += myMin
-		if numIncidents == 0:
-			keyTuple = (1,('incident',0))
-			results.append((keyTuple,1))
-		else:
-			keyTuple = (1,('incident',int(totalMin/float(numIncidents))))
-			results.append((keyTuple,1))
-		return results
-
-	def rewardFuntion(self, oldState, newState):
-		#TODO: Does reward have to have something to do with the random nature of changing states? This is deterministic.
-		#probably should be a function of time as well (we want to incentivize quick action)
-		return len(oldState.incidentPos) - len(newState.incidentPos)
-
-
-	def qlearnMoveTrucks(self, listOfData):
-		currentState = self.generateCurrentState()
-		action = self.qlearn.getAction(currentState)
-		self.updateTruckLocations(action)
-		self.resolveIncidents()	
-		newState = self.generateCurrentState()
-		reward = self.rewardFuntion(currentState, newState)
-		self.qlearn.incorporateFeedback(currentState, action, reward, newState)
-
-
-	def manhattanDistance(self, x1, x2):
-		return abs(x1[0]-x2[0]) + abs(x1[1]-x2[1])
- 
 
 	def minDistFromIncident(self, listOfData):
 		totalNum = len(listOfData)
@@ -309,9 +110,9 @@ class Model():
 			dataPosition = None
 			dataPosition = latLong
 			minTruck = 0
-			minDist = self.manhattanDistance(self.truckPos[0], dataPosition)
+			minDist = utilities.manhattanDistance(self.truckPos[0], dataPosition)
 			for truck in xrange(0,self.numTrucks):
-				myDist = self.manhattanDistance(self.truckPos[truck], dataPosition) #two tuples
+				myDist = utilities.manhattanDistance(self.truckPos[truck], dataPosition) #two tuples
 				if myDist < minDist:
 					minDist = myDist
 					minTruck = truck
@@ -319,7 +120,29 @@ class Model():
 		return totalDist
 
 
-	def updateModel(self, listOfData, timestep):
+		#Take an action and move the trucks accordingly
+	def updateTruckLocations(self, truckDirectives):
+		#Action should be a list of tuples where action[i] = (ith truck directive x, ith truck directive y)
+		for i, (t_row, t_col) in enumerate(self.truckPos):
+			(directive_row, directive_col) = truckDirectives[i]
+			dy = directive_row - t_row
+			dx = directive_col - t_col
+			move_x = utilities.sign(dx)
+			move_y = utilities.sign(dy)
+			self.truckPos[i] = (t_row + move_y, t_col + move_x)
+
+
+	#Resolve and update incidents
+	def resolveIncidents(self):
+		for incident_key, incident_location in dict(self.ongoingIncidents).iteritems():
+			for truck in self.truckPos:
+				if incident_location == truck:
+					if self.ongoingIncidents.has_key(incident_key):
+						del self.ongoingIncidents[incident_key]
+						self.resolvedIncidents[incident_key] = (self.currentTime, incident_location)
+
+
+	def updateSimulation(self, listOfData, timestep):
 		#self.totalError += self.minDistFromIncident(listOfData)
 		self.currentTime = timestep
 		for datapoint in listOfData:
@@ -329,10 +152,18 @@ class Model():
 			location = self.whereOnGrid(lati, lond)
 			self.ongoingIncidents[incident_key] = location
 			self.allIncidents[incident_key] = (self.currentTime, location)
-			self.resolvedtrainortest[incident_key] = self.trainingOrTesting
 
 
-	def printModel(self):
+	def invokeModel(self):
+		currentState = self.generateCurrentState()
+  		action = self.model.chooseAction(currentState)
+  		self.updateTruckLocations(action)
+		self.resolveIncidents()
+		newState = self.generateCurrentState()
+		self.model.witnessResult(newState)	#!!! Should witness result also incude information about the new incidents that will be in the next state?
+
+
+	def printSimulation(self):
 		stringModel = [["_"  for i in range(self.gridHorizontalGranularity)] for j in range(self.gridVerticleGranularity)]
 		for i,(t_row,t_col) in enumerate(self.truckPos):
 			stringModel[t_row][t_col] = str(i+1)
@@ -345,27 +176,19 @@ class Model():
 
 	def compileResults(self):
 		#Calculate Average Response Time
-
 		total = 0
 		response_times = []
-		response_times2 = []
 		myLength = len(self.resolvedIncidents)/2.0
 		count = 0
 		for incident_key, (t1, loc1) in self.resolvedIncidents.iteritems():
 			count += 1
 			t2, loc2 = self.allIncidents[incident_key]
-			if self.resolvedtrainortest[incident_key] == 'training':
-				response_times.append(t1-t2)
-			else:
-				response_times2.append(t1-t2)
+			response_times.append(t1-t2)
+
 		print "============= RESULTS =============="
 		print "Average Response Time: ", sum(response_times) / float(len(response_times))
 		print "Max Response Time: ", max(response_times)
 		print "Min Response Time: ", min(response_times)
-		print "====== RESULTS for SECOND half ====="
-		print "Average Response Time: ", sum(response_times2) / float(len(response_times2))
-		print "Max Response Time: ", max(response_times2)
-		print "Min Response Time: ", min(response_times2)
 		respTimes = open('responseTimes.txt', 'w')
 		for item in response_times:
   			respTimes.write("%s\n" % item)
@@ -373,8 +196,9 @@ class Model():
 
 	#Recieve Data, Move Trucks
 	def receiveNextData(self, listOfData, timestep):
-		self.updateModel(listOfData, timestep)
-		self.qlearnMoveTrucks(listOfData)
+		self.updateSimulation(listOfData, timestep)
+		self.invokeModel()
+
 		'''
 		============= RESULTS ==============
 		Average Response Time:  1.21827411168
@@ -386,7 +210,7 @@ class Model():
 		Min Response Time 2nd half:  0
 		'''
 
-		#self.baselineMoveTrucks(listOfData)
+		#self.baselineMoveTrucks()
 
 		'''
 		Average Response Time:  1.51903553299
@@ -397,10 +221,8 @@ class Model():
 		Max Response Time 2nd half:  12
 		Min Response Time 2nd half:  0
 		'''
-		#self.printModel()
-		if timestep > self.expectedTimeSteps/2:
-			self.trainingOrTesting = 'testing'
-			self.qlearn.explorationProb = 0
+		self.printSimulation()
+		
 	
 
 class dataDispenser():
@@ -467,7 +289,7 @@ class dataDispenser():
 		return myDateTime
 
 
-	def dispenseData(self):
+	def dispenseData(self, model):
 		startTime = self.data[0][0]
 		currentTime = startTime
 		endTime = self.data[-1][0]
@@ -486,7 +308,7 @@ class dataDispenser():
 			currentTime = currentTime +timeStep
 			timeStepNumber += 1
 
-		modelInstance = Model(timeStepNumber)
+		simulationInstance = Simulation(model, timeStepNumber)
 		timeStepNumber = 0
 		i=0
 
@@ -498,10 +320,12 @@ class dataDispenser():
 				if i == len(dataMapper):
 					break
 			print "Timestep: ", timeStepNumber
-			modelInstance.receiveNextData(passList, timeStepNumber)
+			simulationInstance.receiveNextData(passList, timeStepNumber)
 			timeStepNumber+=1
-		modelInstance.compileResults()
+		simulationInstance.compileResults()
 
 
+#greedymodel = models.GreedyAssignmentModel()
+qlearnmodel = models.QlearningModel()
 dd = dataDispenser(datetime.datetime(9,1,1),datetime.timedelta(5))
-dd.dispenseData()
+dd.dispenseData(qlearnmodel)

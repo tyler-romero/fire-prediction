@@ -1,4 +1,3 @@
-import util
 import collections
 import random
 import math
@@ -15,7 +14,7 @@ class RLAlgorithm:
 
 
 
-class QLearningAlgorithm(util.RLAlgorithm):
+class QLearningAlgorithm(RLAlgorithm):
     def __init__(self, possible_actions, discount, featureExtractor, explorationProb=0.2):
         self.possible_actions = possible_actions
         self.discount = discount
