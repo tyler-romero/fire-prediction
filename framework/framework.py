@@ -8,18 +8,16 @@ import copy
 
 
 class State():
-	def __init__(self, row, col, tm, tPos, iPos):
-		self.ncol = col
-		self.nrow = row
+	def __init__(self, tm, tPos, iPos, rRes):
 		self.timestep = tm
 		self.truckPos = tPos
 		self.incidentPos = iPos
+		self.recentlyResolved = rRes
 		
 
 
 class Simulation():
 	'''
-
 	The simulation gets instantiated by a data dispenser, which dispenses data to it at a fixed timestep.
 	The simulation's job is to hold information about where trucks are, and decide where to send each truck
 	at each timestep. 
@@ -34,34 +32,31 @@ class Simulation():
 
 	Oracle: The oracle knows everything, and will make sure a truck is at each location of each incident
 	at the correct timestep. Therefore the oracle should have 0 loss.
-
-
 	'''
 	def __init__(self, model, timeStepsIncoming):
 		self.model = model	#The model we are simulating
 		self.expectedTimeSteps = timeStepsIncoming #Added this to change the exploration prob halfway through
-		self.setup = 0
-		self.numTrucks = 1  # must be >= 1
+		self.numTrucks = 3  # must be >= 1
 		self.stepSize = 1
 		self.truckPos = []
+		self.recentlyResolved = 0
 		self.ongoingIncidents = {}
 		self.allIncidents = {}
 		self.resolvedIncidents = {}
 		self.gridHorizontalGranularity = 10 # must be > 1
 		self.gridVerticleGranularity = 10 # must be > 1
 		self.grid = self.getGrid()
-		self.totalError = 0
 		self.currentTime = -1
 		for i in xrange(0,self.numTrucks):
 			gridRow = random.randint(0,len(self.grid)-1)
 			gridCol = random.randint(0,len(self.grid[0])-1)
 			self.truckPos.append((gridRow,gridCol))
-		print self.truckPos
+		self.model.setSimulationParameters(self.expectedTimeSteps, self.gridVerticleGranularity, self.gridHorizontalGranularity)
 
 
 	#Returns the current state. Which is just a compact representation of the model
 	def generateCurrentState(self):
-		return State(self.gridVerticleGranularity, self.gridHorizontalGranularity, self.currentTime, self.truckPos, self.ongoingIncidents)
+		return State(self.currentTime, self.truckPos, self.ongoingIncidents, self.recentlyResolved)
 
 
 	def getGrid(self):
@@ -69,7 +64,6 @@ class Simulation():
 		#This means that the latitude  at grid[0][0] is greater than the latitude  at grid[n][m]
 		#and 			 the longitude at grid[0][0] is less    than the longitude at grid[n][m]
 		corners = [(32.981625, -117.270982), (32.692295, -117.009370)]
-
 		vertSteps = self.gridVerticleGranularity
 		horizontalSteps = self.gridHorizontalGranularity
 		deltaLat = abs(corners[0][0]-corners[1][0]) 
@@ -120,7 +114,7 @@ class Simulation():
 		return totalDist
 
 
-		#Take an action and move the trucks accordingly
+	#Take an action and move the trucks accordingly
 	def updateTruckLocations(self, truckDirectives):
 		#Action should be a list of tuples where action[i] = (ith truck directive x, ith truck directive y)
 		for i, (t_row, t_col) in enumerate(self.truckPos):
@@ -134,16 +128,17 @@ class Simulation():
 
 	#Resolve and update incidents
 	def resolveIncidents(self):
+		self.recentlyResolved = 0
 		for incident_key, incident_location in dict(self.ongoingIncidents).iteritems():
 			for truck in self.truckPos:
 				if incident_location == truck:
 					if self.ongoingIncidents.has_key(incident_key):
 						del self.ongoingIncidents[incident_key]
 						self.resolvedIncidents[incident_key] = (self.currentTime, incident_location)
+						self.recentlyResolved += 1
 
 
 	def updateSimulation(self, listOfData, timestep):
-		#self.totalError += self.minDistFromIncident(listOfData)
 		self.currentTime = timestep
 		for datapoint in listOfData:
 			incident_key = datapoint[1]
@@ -152,15 +147,6 @@ class Simulation():
 			location = self.whereOnGrid(lati, lond)
 			self.ongoingIncidents[incident_key] = location
 			self.allIncidents[incident_key] = (self.currentTime, location)
-
-
-	def invokeModel(self):
-		currentState = self.generateCurrentState()
-  		action = self.model.chooseAction(currentState)
-  		self.updateTruckLocations(action)
-		self.resolveIncidents()
-		newState = self.generateCurrentState()
-		self.model.witnessResult(newState)	#!!! Should witness result also incude information about the new incidents that will be in the next state?
 
 
 	def printSimulation(self):
@@ -178,49 +164,50 @@ class Simulation():
 		#Calculate Average Response Time
 		total = 0
 		response_times = []
+		response_times1 = []
+		response_times2 = []
 		myLength = len(self.resolvedIncidents)/2.0
 		count = 0
 		for incident_key, (t1, loc1) in self.resolvedIncidents.iteritems():
 			count += 1
 			t2, loc2 = self.allIncidents[incident_key]
-			response_times.append(t1-t2)
+			respTime = t1-t2
+			response_times.append(respTime)
+			if t1 < self.expectedTimeSteps/2:
+				response_times1.append(respTime)
+			else:
+				response_times2.append(respTime)
 
-		print "============= RESULTS =============="
-		print "Average Response Time: ", sum(response_times) / float(len(response_times))
-		print "Max Response Time: ", max(response_times)
-		print "Min Response Time: ", min(response_times)
+		#THIS BREAKDOWN IS INHERANTLY BIASED
+		print "============= FIRST HALF RESULTS =============="
+		print "Average Response Time: ", sum(response_times1) / float(len(response_times1))
+		print "Max Response Time: ", max(response_times1)
+		print "Min Response Time: ", min(response_times1)
+		print "============= SECOND HALF RESULTS ============="
+		print "Average Response Time: ", sum(response_times2) / float(len(response_times2))
+		print "Max Response Time: ", max(response_times2)
+		print "Min Response Time: ", min(response_times2)
 		respTimes = open('responseTimes.txt', 'w')
 		for item in response_times:
   			respTimes.write("%s\n" % item)
 
 
 	#Recieve Data, Move Trucks
-	def receiveNextData(self, listOfData, timestep):
+	#I changed the order of some things here to allow us to be more true to
+	#the actual Qlearning model. Namely that witnessResult needs to come after
+	#the next state is fully updated: trucks moved, incidents resolved, new incidents added
+	def executeTimestep(self, listOfData, timestep):
 		self.updateSimulation(listOfData, timestep)
-		self.invokeModel()
 
-		'''
-		============= RESULTS ==============
-		Average Response Time:  1.21827411168
-		Max Response Time:  14
-		Min Response Time:  0
-		====== RESULTS for second half =====
-		Average Response Time 2nd half:  1.40456989247
-		Max Response Time 2nd half:  14
-		Min Response Time 2nd half:  0
-		'''
+		if timestep != 0:
+			newState = self.generateCurrentState()
+			self.model.witnessResult(newState)
 
-		#self.baselineMoveTrucks()
-
-		'''
-		Average Response Time:  1.51903553299
-		Max Response Time:  8
-		Min Response Time:  0
-		====== RESULTS for second half =====
-		Average Response Time 2nd half:  1.53162853297
-		Max Response Time 2nd half:  12
-		Min Response Time 2nd half:  0
-		'''
+		currentState = self.generateCurrentState()
+  		action = self.model.chooseAction(currentState)
+  		self.updateTruckLocations(action)
+		self.resolveIncidents()
+		
 		self.printSimulation()
 		
 	
@@ -254,6 +241,7 @@ class dataDispenser():
 				if dateTime >= self.start and dateTime <= self.end:
 					self.data.append([dateTime, splitList])
 			self.dataLength = len(self.data)
+
 
 	def splitComma(self,myStr):
 		#necessary because data has form _one,_two,"three, three continued", four
@@ -320,12 +308,13 @@ class dataDispenser():
 				if i == len(dataMapper):
 					break
 			print "Timestep: ", timeStepNumber
-			simulationInstance.receiveNextData(passList, timeStepNumber)
+			simulationInstance.executeTimestep(passList, timeStepNumber)
 			timeStepNumber+=1
 		simulationInstance.compileResults()
 
 
+#randmodel = models.RandomModel()
 #greedymodel = models.GreedyAssignmentModel()
 qlearnmodel = models.QlearningModel()
-dd = dataDispenser(datetime.datetime(9,1,1),datetime.timedelta(5))
+dd = dataDispenser(datetime.datetime(9,1,1), datetime.timedelta(5))
 dd.dispenseData(qlearnmodel)

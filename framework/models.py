@@ -17,22 +17,28 @@ class genericModel:
 	def witnessResult(self, state):
 		pass
 
+	def setSimulationParameters(self, expTimeSteps, nrow, ncol):
+		self.expectedTimeSteps = expTimeSteps
+		self.nrow = nrow
+		self.ncol = ncol
+
+
+
+class RandomModel(genericModel):
+	def chooseAction(self, state):
+		actionList = []
+		for i in xrange(0,len(state.truckPos)):
+			r = random.randint(0,self.ncol-1)
+			c = random.randint(0,self.nrow-1)
+			actionList.append((r,c))
+		return actionList
+
+
 
 class GreedyAssignmentModel(genericModel):
-
 	def chooseAction(self, state):
-		'''
-		action = self.baselineGetAction(currentState)
-		for i in xrange(0,self.numTrucks):
-			newGridRow = self.truckPos[i][0] + random.randint(-self.stepSize,self.stepSize)
-			newGridCol = self.truckPos[i][1] + random.randint(-self.stepSize,self.stepSize)
-			newGridRow = min(self.gridHorizontalGranularity-1, max(0,newGridRow))
-			newGridCol = min(self.gridVerticleGranularity-1, max(0,newGridCol))
-			self.truckPos[i] = (newGridRow, newGridCol)
-		'''
 		action = self.generateAction(state)
 		return action
-
 
 	def generateAction(self, state):
 		point_list = []
@@ -43,8 +49,8 @@ class GreedyAssignmentModel(genericModel):
 			if len(ongoingList) > i:
 				point_list.append(state.incidentPos[ongoingList[i]])
 			else:
-				rrow = random.randint(0,state.nrow-1)
-				rcol = random.randint(0,state.ncol-1)
+				rrow = random.randint(0,self.nrow-1)
+				rcol = random.randint(0,self.ncol-1)
 				point_list.append((rrow, rcol))
 		assignment_list = [-1]*len(state.truckPos)
 		tempTruckList = copy.deepcopy(state.truckPos)
@@ -61,19 +67,6 @@ class GreedyAssignmentModel(genericModel):
 			assignment_list[minIndex] = point
 			tempTruckList[minIndex] = None
 		return assignment_list
-		'''
-		actionList = []
-		for i in xrange(0,len(currentState.truckPos)):
-			if len(currentState.incidentPos.keys()) > i:
-				#print currentState.incidentPos[currentState.incidentPos.keys()[i]]
-				actionList.append(currentState.incidentPos[currentState.incidentPos.keys()[i]])
-			else:
-				r = random.randint(0,self.gridHorizontalGranularity-1)
-				c = random.randint(0,self.gridVerticleGranularity-1)
-				actionList.append((r,c))
-		return tuple(actionList)
-		'''
-
 
 
 class QlearningModel(genericModel):
@@ -82,8 +75,7 @@ class QlearningModel(genericModel):
 		self.qlearn = mdp.QLearningAlgorithm(self.generateActions, 1, self.featureExtractor)
 		self.mostRecentState = None
 		self.mostRecentAction = None
-		self.numActions = 50	#Number of actions to generate each state
-
+		self.numActions = 500	#Number of actions to generate each state
 
 	def generateActions(self, state):
 		thresh = 0.4	#Chance of inserting an incident
@@ -95,12 +87,11 @@ class QlearningModel(genericModel):
 			#Heuristic to only include points directing trucks to nearby incidents
 			incidentList = state.incidentPos.keys()
 			for i in xrange(0,len(state.truckPos)):
-				if len(incidentList
-					) > i:
+				if len(incidentList) > i:
 					point_list.append(state.incidentPos[incidentList[i]])
 				else:
-					rrow = random.randint(0, state.nrow-1)
-					rcol = random.randint(0, state.ncol-1)
+					rrow = random.randint(0, self.nrow-1)
+					rcol = random.randint(0, self.ncol-1)
 					point_list.append((rrow, rcol))
 
 			#Greedily assign each point to the nearest truck
@@ -121,11 +112,10 @@ class QlearningModel(genericModel):
 			masterList.append(assignment_list)
 		
 		#Append action where trucks do not move:
-		#masterList.append(state.truckPos)
+		#masterList.append(state.truckPos)	#This tends to make it much worse
 
 		#TODO: Append action same as last turn
 		return masterList
-
 
 	def featureExtractor(self,state,action):
 		#The way I am doing this is, instead of how in blackjack where we did (state,action) pairs
@@ -134,13 +124,11 @@ class QlearningModel(genericModel):
 		#the action? I could be doing this wrong but I think this is right
 		results = []
 
-		#TODO: Include time of day as a feature
-
 		#sum of distance from truck to nearest truck
 		totalMin = 0
 		numTrucks = len(state.truckPos)
 		for truck in xrange(0,numTrucks):
-			myMin = state.nrow + state.ncol
+			myMin = self.nrow + self.ncol
 			minPos = -1
 			for other_truck in xrange(0,numTrucks):
 				if truck == other_truck:
@@ -157,7 +145,7 @@ class QlearningModel(genericModel):
 		totalMin = 0
 		numIncidents = len(state.incidentPos)
 		for key, incident in state.incidentPos.iteritems():
-			myMin = state.nrow + state.ncol
+			myMin = self.nrow + self.ncol
 			minPos = -1
 			for truck in xrange(0, numTrucks):
 				if utilities.manhattanDistance(state.truckPos[truck], incident) < myMin:
@@ -170,14 +158,28 @@ class QlearningModel(genericModel):
 		else:
 			keyTuple = (1,('incident',int(totalMin/float(numIncidents))))
 			results.append((keyTuple,1))
+		#TODO: Include time of day as a feature
 		return results
 
 
-	def rewardFuntion(self, oldState, newState):
-		#TODO: Does reward have to have something to do with the random nature of changing states? This is deterministic.
-		#probably should be a function of time as well (we want to incentivize quick action)
-		return len(oldState.incidentPos) - len(newState.incidentPos)
+	##--------------- Reward Functions ------------------------
+	#TODO: for the old reward function to be viable, more info needs to be passed into witness results
+	#However, I dont think that this is a good reward function, as it doesnt have a lot to do with
+	#what we are trying to optimize for, which is time
+	def incidentsResolvedReward(self, oldState, newState):
+		return newState.recentlyResolved
 
+	# Sum of distances from trucks to incidents in a given state
+	def sumOfIncidentDistances(state):
+		for incident in state.incidentPos:
+			for truck in state.truckPos:
+				pass
+				#TODO: finish implementing this
+
+	#Reward given at each state for distance to events
+	def normailizedIncidentDistanceReward(self, oldState, newState):
+		return -1*sumOfIncidentDistances(oldState)
+	##---------------------------------------------------------
 
 	def chooseAction(self, currentState):
 		self.mostRecentState = currentState
@@ -185,10 +187,10 @@ class QlearningModel(genericModel):
 		self.mostRecentAction = action
 		return action
 
-
 	def witnessResult(self, newState):
-		reward = self.rewardFuntion(self.mostRecentState, newState)
+		reward = self.incidentsResolvedReward(self.mostRecentState, newState)
+		#reward = self.normailizedIncidentDistanceReward(self.mostRecentState, newState)
 		self.qlearn.incorporateFeedback(self.mostRecentState, self.mostRecentAction, reward, newState)
-		#if ntimestep > self.expectedTimeSteps/2:
-		#	self.trainingOrTesting = 'testing'
-		#	self.qlearn.explorationProb = 0
+		if newState.timestep > self.expectedTimeSteps/2:
+			self.trainingOrTesting = 'testing'
+			self.qlearn.explorationProb = 0
