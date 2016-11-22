@@ -4,6 +4,7 @@ import datetime
 import random
 import math
 import copy
+import sys
 
 
 
@@ -43,8 +44,8 @@ class Simulation():
 		self.ongoingIncidents = {}
 		self.allIncidents = {}
 		self.resolvedIncidents = {}
-		self.gridHorizontalGranularity = 10 # must be > 1
-		self.gridVerticleGranularity = 10 # must be > 1
+		self.gridHorizontalGranularity = 20 # must be > 1
+		self.gridVerticleGranularity = 20 # must be > 1
 		self.grid = self.getGrid()
 		self.currentTime = -1
 		for i in xrange(0,self.numTrucks):
@@ -52,7 +53,10 @@ class Simulation():
 			gridCol = random.randint(0,len(self.grid[0])-1)
 			self.truckPos.append((gridRow,gridCol))
 		self.model.setSimulationParameters(self.expectedTimeSteps, self.gridVerticleGranularity, self.gridHorizontalGranularity)
-
+		self.incidentCounter = []
+		for i in range(self.gridVerticleGranularity):
+			temp = [0]*self.gridHorizontalGranularity
+			self.incidentCounter.append(temp)
 
 	#Returns the current state. Which is just a compact representation of the model
 	def generateCurrentState(self):
@@ -145,6 +149,8 @@ class Simulation():
 			lati = float(datapoint[4].split('_')[0])
 			lond = float(datapoint[4].split('_')[1])
 			location = self.whereOnGrid(lati, lond)
+			x, y = location
+			self.incidentCounter[x][y] += 1
 			self.ongoingIncidents[incident_key] = location
 			self.allIncidents[incident_key] = (self.currentTime, location)
 
@@ -158,6 +164,7 @@ class Simulation():
 		for i in range(len(stringModel)):
 			print stringModel[i]
 		print "Ongoing Incidents: ", len(self.ongoingIncidents), "Resolved Incidents: ", len(self.resolvedIncidents), "\n"
+		
 
 
 	def compileResults(self):
@@ -178,7 +185,7 @@ class Simulation():
 			else:
 				response_times2.append(respTime)
 
-		#THIS BREAKDOWN IS INHERANTLY BIASED
+		#THIS BREAKDOWN IS INHERANTLY BIASED, The second half is more difficult
 		print "============= FIRST HALF RESULTS =============="
 		print "Average Response Time: ", sum(response_times1) / float(len(response_times1))
 		print "Max Response Time: ", max(response_times1)
@@ -190,12 +197,17 @@ class Simulation():
 		respTimes = open('responseTimes.txt', 'w')
 		for item in response_times:
   			respTimes.write("%s\n" % item)
+  		#Where the incidents actually occur
+  		#print "Incident Locations:"
+		#for li in self.incidentCounter:
+		#	print li
 
 
 	#Recieve Data, Move Trucks
 	#I changed the order of some things here to allow us to be more true to
 	#the actual Qlearning model. Namely that witnessResult needs to come after
-	#the next state is fully updated: trucks moved, incidents resolved, new incidents added
+	#the next state is fully updated:
+	#(state s) -> trucks moved -> incidents resolved -> new incidents added -> (state s')
 	def executeTimestep(self, listOfData, timestep):
 		self.updateSimulation(listOfData, timestep)
 
@@ -203,18 +215,21 @@ class Simulation():
 			newState = self.generateCurrentState()
 			self.model.witnessResult(newState)
 
+		sys.stdout.write("Timestep: %d  \r" % (timestep) )
+		sys.stdout.flush()
+		#self.printSimulation()
+
 		currentState = self.generateCurrentState()
   		action = self.model.chooseAction(currentState)
   		self.updateTruckLocations(action)
 		self.resolveIncidents()
 		
-		self.printSimulation()
+		
 		
 	
 
 class dataDispenser():
 	def __init__(self,day,timerange,dataFileNames=['data/i2009.csv']):
-
 		#,'incidents2010.csv',\
 		#'incidents2011.csv','incidents2012.csv','incidents2013.csv','incidents2014.csv',\
 		#'incidents2015.csv','incidents2016.csv']):
@@ -223,6 +238,7 @@ class dataDispenser():
 		self.dataLength = []
 		self.start = day
 		self.end = day+timerange
+
 		#self.data is a list with 8 elements: the lists of data for each year
 		for fileName in dataFileNames:
 			self.timeStep = 60
@@ -263,7 +279,6 @@ class dataDispenser():
 
 
 	def fixLatLong(self,myList):
-		#sorry about this, latLong was formatted as 'lat-long', needs to be 'lat_-long'
 		myList[4] = myList[4].split('-')[0]+'_-'+myList[4].split('-')[1]
 		return myList
 
@@ -298,8 +313,7 @@ class dataDispenser():
 
 		simulationInstance = Simulation(model, timeStepNumber)
 		timeStepNumber = 0
-		i=0
-
+		i = 0
 		while i < len(dataMapper):
 			passList = []
 			while dataMapper[i] <= timeStepNumber:
@@ -307,14 +321,31 @@ class dataDispenser():
 				i+=1
 				if i == len(dataMapper):
 					break
-			print "Timestep: ", timeStepNumber
 			simulationInstance.executeTimestep(passList, timeStepNumber)
 			timeStepNumber+=1
 		simulationInstance.compileResults()
 
 
 #randmodel = models.RandomModel()
-#greedymodel = models.GreedyAssignmentModel()
 qlearnmodel = models.QlearningModel()
-dd = dataDispenser(datetime.datetime(9,1,1), datetime.timedelta(5))
-dd.dispenseData(qlearnmodel)
+print "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%"
+print "Qlearning Model"
+print "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%"
+dd1 = dataDispenser(datetime.datetime(9,1,1), datetime.timedelta(5))
+dd1.dispenseData(qlearnmodel)
+dd1 = dataDispenser(datetime.datetime(9,1,1), datetime.timedelta(5))
+dd1.dispenseData(qlearnmodel)
+dd1 = dataDispenser(datetime.datetime(9,1,1), datetime.timedelta(5))
+dd1.dispenseData(qlearnmodel)
+
+
+print "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%"
+print "Greedy Model"
+print "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%"
+greedymodel = models.GreedyAssignmentModel()
+dd2 = dataDispenser(datetime.datetime(9,1,1), datetime.timedelta(5))
+dd2.dispenseData(greedymodel)
+dd2 = dataDispenser(datetime.datetime(9,1,1), datetime.timedelta(5))
+dd2.dispenseData(greedymodel)
+dd2 = dataDispenser(datetime.datetime(9,1,1), datetime.timedelta(5))
+dd2.dispenseData(greedymodel)

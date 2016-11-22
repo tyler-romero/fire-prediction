@@ -7,9 +7,8 @@ class RLAlgorithm:
     def getAction(self, state): raise NotImplementedError("Override me")
 
     # If |state| is a terminal state, this function will be called with (s, a,
-    # 0, None). When this function is called, it indicates that taking action
-    # |action| in state |state| resulted in reward |reward| and a transition to state
-    # |newState|.
+    # 0, None). When this function is called, it indicates that taking action |action|
+    # in state |state| resulted in reward |reward| and a transition to state |newState|.
     def incorporateFeedback(self, state, action, reward, newState): raise NotImplementedError("Override me")
 
 
@@ -35,6 +34,7 @@ class QLearningAlgorithm(RLAlgorithm):
     # |explorationProb|, take a random action.
     def getAction(self, state):
         state_actions = self.possible_actions(state)
+        truck1_actions = []
         self.numIters += 1
         if random.random() < self.explorationProb:
             return random.choice(state_actions)
@@ -51,7 +51,6 @@ class QLearningAlgorithm(RLAlgorithm):
     # self.getQ() to compute the current estimate of the parameters.
     def incorporateFeedback(self, state, action, reward, newState):
         if (newState == None): pass
-        
         Vopt = max([self.getQ(newState, a) for a in self.possible_actions(newState)])
         getQ = self.getQ(state, action)
         for f, v in self.featureExtractor(state, action):

@@ -75,16 +75,16 @@ class QlearningModel(genericModel):
 		self.qlearn = mdp.QLearningAlgorithm(self.generateActions, 1, self.featureExtractor)
 		self.mostRecentState = None
 		self.mostRecentAction = None
-		self.numActions = 500	#Number of actions to generate each state
+		self.numActions = 50	#Number of actions to generate each state
 
 	def generateActions(self, state):
-		thresh = 0.4	#Chance of inserting an incident
 		masterList = []
-		for _ in range(self.numActions):
+		for actionNum in range(self.numActions):
 			#For each truck, insert a point into point_list
 			point_list = []
 
 			#Heuristic to only include points directing trucks to nearby incidents
+			#TODO: what if two incidents at same location?
 			incidentList = state.incidentPos.keys()
 			for i in xrange(0,len(state.truckPos)):
 				if len(incidentList) > i:
@@ -110,13 +110,20 @@ class QlearningModel(genericModel):
 				assignment_list[minIndex] = point
 				tempTruckList[minIndex] = None
 			masterList.append(assignment_list)
-		
-		#Append action where trucks do not move:
-		#masterList.append(state.truckPos)	#This tends to make it much worse
 
-		#TODO: Append action same as last turn
-		#TODO: Append do nothing action same as last turn
 		return masterList
+
+	def simulateAction(self, state, action):
+		newState = copy.deepcopy(state)
+		for i, (t_row, t_col) in enumerate(state.truckPos):
+			(directive_row, directive_col) = action[i]
+			dy = directive_row - t_row
+			dx = directive_col - t_col
+			move_x = utilities.sign(dx)
+			move_y = utilities.sign(dy)
+			newState.truckPos[i] = (t_row + move_y, t_col + move_x)
+		return newState
+
 
 	def featureExtractor(self,state,action):
 		#The way I am doing this is, instead of how in blackjack where we did (state,action) pairs
@@ -125,9 +132,16 @@ class QlearningModel(genericModel):
 		#the action? I could be doing this wrong but I think this is right
 		results = []
 
+		#Features should help to distinguish between actions!
+		#Every action has the same state, soley state based features
+		#cause every action to have the same weight, and its essentially
+		#random choice! By evaluating potential future states, we get a better
+		#distinction between actions
+		newState = self.simulateAction(state,action)
+
 		#sum of distance from truck to nearest truck
 		totalMin = 0
-		numTrucks = len(state.truckPos)
+		numTrucks = len(newState.truckPos)
 		for truck in xrange(0,numTrucks):
 			myMin = self.nrow + self.ncol
 			minPos = -1
@@ -135,31 +149,38 @@ class QlearningModel(genericModel):
 				if truck == other_truck:
 					continue
 				#print truck, other_truck, self.truckPos, self.numTrucks
-				if utilities.manhattanDistance(state.truckPos[truck],state.truckPos[other_truck]) < myMin:
-					myMin = utilities.manhattanDistance(state.truckPos[truck],state.truckPos[other_truck])
+				if utilities.manhattanDistance(newState.truckPos[truck],newState.truckPos[other_truck]) < myMin:
+					myMin = utilities.manhattanDistance(newState.truckPos[truck],newState.truckPos[other_truck])
 					minPos = other_truck
 			totalMin += myMin
-		keyTuple = (1,('truck',totalMin/float(numTrucks)))
-		results.append((keyTuple,1))
+		truckDistKey = ('truckDist',totalMin/float(numTrucks))
+		results.append((truckDistKey,1))
 
 		#sum of distances from incidents to nearest truck
 		totalMin = 0
-		numIncidents = len(state.incidentPos)
-		for key, incident in state.incidentPos.iteritems():
+		numIncidents = len(newState.incidentPos)
+		for key, incident in newState.incidentPos.iteritems():
 			myMin = self.nrow + self.ncol
 			minPos = -1
 			for truck in xrange(0, numTrucks):
-				if utilities.manhattanDistance(state.truckPos[truck], incident) < myMin:
-					myMin = utilities.manhattanDistance(state.truckPos[truck], incident)
+				if utilities.manhattanDistance(newState.truckPos[truck], incident) < myMin:
+					myMin = utilities.manhattanDistance(newState.truckPos[truck], incident)
 					minPos = other_truck
 			totalMin += myMin
-		if numIncidents == 0:
-			keyTuple = (1,('incident',0))
-			results.append((keyTuple,1))
-		else:
-			keyTuple = (1,('incident',int(totalMin/float(numIncidents))))
-			results.append((keyTuple,1))
-		#TODO: Include time of day as a feature
+
+		for truck in newState.truckPos:
+			xtotal = truck[0]
+			ytotal = truck[1]
+		truckDistKey = ('aveTruckX', round(xtotal/len(newState.truckPos)))
+		results.append((truckDistKey,1))
+		truckDistKey = ('aveTruckY', round(ytotal/len(newState.truckPos)))
+		results.append((truckDistKey,1))
+
+		incidentKey = ('incident', 0 if numIncidents == 0 else int(totalMin/float(numIncidents)))
+		results.append((incidentKey,1))
+
+		#TODO: Include time of day as a feature?
+		#TODO: Include average horizontal and average vertical position of trucks as features?
 		return results
 
 
@@ -179,8 +200,9 @@ class QlearningModel(genericModel):
 
 	#Reward given at each state for distance to events
 	def normailizedIncidentDistanceReward(self, oldState, newState):
-		return -1*sumOfIncidentDistances(oldState)
+		return 100 - sumOfIncidentDistances(oldState)
 	##---------------------------------------------------------
+
 
 	def chooseAction(self, currentState):
 		self.mostRecentState = currentState
