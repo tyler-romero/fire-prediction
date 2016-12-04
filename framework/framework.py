@@ -9,11 +9,12 @@ import sys
 
 
 class State():
-	def __init__(self, tm, tPos, iPos, rRes):
+	def __init__(self, tm, tPos, iPos, rRes, newInc):
 		self.timestep = tm
 		self.truckPos = tPos
 		self.incidentPos = iPos
 		self.recentlyResolved = rRes
+		self.newIncidents = newInc
 		
 
 
@@ -43,6 +44,7 @@ class Simulation():
 		self.recentlyResolved = 0
 		self.ongoingIncidents = {}
 		self.allIncidents = {}
+		self.newIncidents = {}	#Only incidents apperaing in the most recent timestep
 		self.resolvedIncidents = {}
 		self.gridHorizontalGranularity = 20 # must be > 1
 		self.gridVerticleGranularity = 20 # must be > 1
@@ -60,7 +62,7 @@ class Simulation():
 
 	#Returns the current state. Which is just a compact representation of the model
 	def generateCurrentState(self):
-		return State(self.currentTime, self.truckPos, self.ongoingIncidents, self.recentlyResolved)
+		return State(self.currentTime, self.truckPos, self.ongoingIncidents, self.recentlyResolved, self.newIncidents)
 
 
 	def getGrid(self):
@@ -144,6 +146,7 @@ class Simulation():
 
 	def updateSimulation(self, listOfData, timestep):
 		self.currentTime = timestep
+		self.newIncidents.clear()
 		for datapoint in listOfData:
 			incident_key = datapoint[1]
 			lati = float(datapoint[4].split('_')[0])
@@ -152,6 +155,7 @@ class Simulation():
 			x, y = location
 			self.incidentCounter[x][y] += 1
 			self.ongoingIncidents[incident_key] = location
+			self.newIncidents[incident_key] = location
 			self.allIncidents[incident_key] = (self.currentTime, location)
 
 
@@ -195,8 +199,8 @@ class Simulation():
 		print "Max Response Time: ", max(response_times2)
 		print "Min Response Time: ", min(response_times2)
 		respTimes = open('responseTimes.txt', 'w')
-		for item in response_times:
-  			respTimes.write("%s\n" % item)
+		#for item in response_times:
+  		#	respTimes.write("%s\n" % item)
   		#Where the incidents actually occur
   		#print "Incident Locations:"
 		#for li in self.incidentCounter:
@@ -229,7 +233,7 @@ class Simulation():
 	
 
 class dataDispenser():
-	def __init__(self,day,timerange,dataFileNames=['data/i2009.csv']):
+	def __init__(self,day,timerange,dataFileNames=['data/new_data/new_incidents2009.csv']):
 		#,'incidents2010.csv',\
 		#'incidents2011.csv','incidents2012.csv','incidents2013.csv','incidents2014.csv',\
 		#'incidents2015.csv','incidents2016.csv']):
@@ -250,10 +254,6 @@ class dataDispenser():
 					continue
 				splitList = self.splitComma(line.strip())
 				dateTime = self.getDateTime(splitList[8])
-				splitList = self.fixLatLong(splitList)
-				if len(splitList) != 11:
-					print splitList
-					raise Exception('Data is not proper number of fields')
 				if dateTime >= self.start and dateTime <= self.end:
 					self.data.append([dateTime, splitList])
 			self.dataLength = len(self.data)
@@ -331,21 +331,21 @@ qlearnmodel = models.QlearningModel()
 print "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%"
 print "Qlearning Model"
 print "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%"
-dd1 = dataDispenser(datetime.datetime(9,1,1), datetime.timedelta(5))
+dd1 = dataDispenser(datetime.datetime(9,1,1), datetime.timedelta(100))	#Start Jan 1, 2009, five day range
 dd1.dispenseData(qlearnmodel)
-dd1 = dataDispenser(datetime.datetime(9,1,1), datetime.timedelta(5))
-dd1.dispenseData(qlearnmodel)
-dd1 = dataDispenser(datetime.datetime(9,1,1), datetime.timedelta(5))
-dd1.dispenseData(qlearnmodel)
+
+
+print "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%"
+print "Dumb Qlearning Model"
+print "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%"
+dumbQlearnmodel = models.NaiveQlearningModel()
+dd3 = dataDispenser(datetime.datetime(9,1,1), datetime.timedelta(100))
+dd3.dispenseData(dumbQlearnmodel)
 
 
 print "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%"
 print "Greedy Model"
 print "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%"
 greedymodel = models.GreedyAssignmentModel()
-dd2 = dataDispenser(datetime.datetime(9,1,1), datetime.timedelta(5))
-dd2.dispenseData(greedymodel)
-dd2 = dataDispenser(datetime.datetime(9,1,1), datetime.timedelta(5))
-dd2.dispenseData(greedymodel)
-dd2 = dataDispenser(datetime.datetime(9,1,1), datetime.timedelta(5))
+dd2 = dataDispenser(datetime.datetime(9,1,1), datetime.timedelta(100))
 dd2.dispenseData(greedymodel)

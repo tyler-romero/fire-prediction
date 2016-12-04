@@ -69,6 +69,77 @@ class GreedyAssignmentModel(genericModel):
 		return assignment_list
 
 
+
+#Qlearning model, without any features or rewards.
+#WHY DOES THIS WORK THE BEST?
+class NaiveQlearningModel(genericModel):
+	def __init__(self):
+		self.trainingOrTesting = 'training'
+		self.qlearn = mdp.QLearningAlgorithm(self.generateActions, 1, self.featureExtractor)
+		self.mostRecentState = None
+		self.mostRecentAction = None
+		self.numActions = 50	#Number of actions to generate each state
+
+	def generateActions(self, state):
+		masterList = []
+		for actionNum in range(self.numActions):
+			#For each truck, insert a point into point_list
+			point_list = []
+
+			#Heuristic to only include points directing trucks to nearby incidents
+			#TODO: what if two incidents at same location?
+			incidentList = state.incidentPos.keys()
+			for i in xrange(0,len(state.truckPos)):
+				if len(incidentList) > i:
+					point_list.append(state.incidentPos[incidentList[i]])
+				else:
+					rrow = random.randint(0, self.nrow-1)
+					rcol = random.randint(0, self.ncol-1)
+					point_list.append((rrow, rcol))
+
+			#Greedily assign each point to the nearest truck
+			assignment_list = [-1]*len(state.truckPos)
+			tempTruckList = copy.deepcopy(state.truckPos)
+			for point in point_list:
+				minDist = sys.maxint
+				minIndex = 0
+				for i, truck in enumerate(tempTruckList):
+					if truck is None:
+						continue
+					dist = utilities.manhattanDistance(truck, point)
+					if dist < minDist:
+						minDist = dist
+						minIndex = i
+				assignment_list[minIndex] = point
+				tempTruckList[minIndex] = None
+			masterList.append(assignment_list)
+		return masterList
+
+	def featureExtractor(self,state,action):
+		return []
+
+	##--------------- Reward Functions ------------------------
+	def dumbReward(self):
+		return 0
+
+	##---------------------------------------------------------
+
+	def chooseAction(self, currentState):
+		self.mostRecentState = currentState
+		action = self.qlearn.getAction(currentState)
+		self.mostRecentAction = action
+		return action
+
+	def witnessResult(self, newState):
+		reward = self.dumbReward()
+		self.qlearn.incorporateFeedback(self.mostRecentState, self.mostRecentAction, reward, newState)
+		if newState.timestep > self.expectedTimeSteps/2:
+			self.trainingOrTesting = 'testing'
+			self.qlearn.explorationProb = 0
+
+
+
+# OUR ACTUAL MODEL
 class QlearningModel(genericModel):
 	def __init__(self):
 		self.trainingOrTesting = 'training'
@@ -153,7 +224,7 @@ class QlearningModel(genericModel):
 					myMin = utilities.manhattanDistance(newState.truckPos[truck],newState.truckPos[other_truck])
 					minPos = other_truck
 			totalMin += myMin
-		truckDistKey = ('truckDist',totalMin/float(numTrucks))
+		truckDistKey = ('truckDist',round(totalMin/float(numTrucks)))
 		results.append((truckDistKey,1))
 
 		#sum of distances from incidents to nearest truck
@@ -168,15 +239,7 @@ class QlearningModel(genericModel):
 					minPos = other_truck
 			totalMin += myMin
 
-		for truck in newState.truckPos:
-			xtotal = truck[0]
-			ytotal = truck[1]
-		truckDistKey = ('aveTruckX', round(xtotal/len(newState.truckPos)))
-		results.append((truckDistKey,1))
-		truckDistKey = ('aveTruckY', round(ytotal/len(newState.truckPos)))
-		results.append((truckDistKey,1))
-
-		incidentKey = ('incident', 0 if numIncidents == 0 else int(totalMin/float(numIncidents)))
+		incidentKey = ('incidentDist', 0 if numIncidents == 0 else round(totalMin/float(numIncidents)))
 		results.append((incidentKey,1))
 
 		#TODO: Include time of day as a feature?
@@ -185,22 +248,19 @@ class QlearningModel(genericModel):
 
 
 	##--------------- Reward Functions ------------------------
-	#TODO: for the old reward function to be viable, more info needs to be passed into witness results
-	#However, I dont think that this is a good reward function, as it doesnt have a lot to do with
-	#what we are trying to optimize for, which is time
-	def incidentsResolvedReward(self, oldState, newState):
+	def incidentsResolvedReward(self, newState):
 		return newState.recentlyResolved
 
-	# Sum of distances from trucks to incidents in a given state
-	def sumOfIncidentDistances(state):
-		for incident in state.incidentPos:
-			for truck in state.truckPos:
-				pass
-				#TODO: finish implementing this
 
-	#Reward given at each state for distance to events
-	def normailizedIncidentDistanceReward(self, oldState, newState):
-		return 100 - sumOfIncidentDistances(oldState)
+	#Reward given at each state for distance to NEW Incidents
+	def newIncidentAppearsReward(self, newState):
+		if len(newState.newIncidents) is not 0:
+			totalDist = sum( min(utilities.manhattanDistance(tPos, iPos) for tPos in newState.truckPos) for incident, iPos in newState.newIncidents.iteritems())	#This could double count some trucks
+			return 100/(totalDist+1)	#No dividing by infinity
+		else:
+			return 0
+
+
 	##---------------------------------------------------------
 
 
@@ -211,8 +271,8 @@ class QlearningModel(genericModel):
 		return action
 
 	def witnessResult(self, newState):
-		reward = self.incidentsResolvedReward(self.mostRecentState, newState)
-		#reward = self.normailizedIncidentDistanceReward(self.mostRecentState, newState)
+		#reward = self.incidentsResolvedReward(newState)
+		reward = self.newIncidentAppearsReward(newState)
 		self.qlearn.incorporateFeedback(self.mostRecentState, self.mostRecentAction, reward, newState)
 		if newState.timestep > self.expectedTimeSteps/2:
 			self.trainingOrTesting = 'testing'
