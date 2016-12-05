@@ -318,8 +318,6 @@ class QlearningModel(genericModel):
 			return 100/(totalDist+1)	#No dividing by infinity
 		else:
 			return 0
-
-
 	##---------------------------------------------------------
 
 

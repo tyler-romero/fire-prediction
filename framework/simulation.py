@@ -44,8 +44,8 @@ class Simulation():
 		self.allIncidents = {}
 		self.newIncidents = {}	#Only incidents apperaing in the most recent timestep
 		self.resolvedIncidents = {}
-		self.gridHorizontalGranularity = 20 # must be > 1
-		self.gridVerticleGranularity = 20 # must be > 1
+		self.gridHorizontalGranularity = 10 # must be > 1
+		self.gridVerticleGranularity = 10 # must be > 1
 		self.grid = self.getGrid()
 		self.currentTime = -1
 		for i in xrange(0,self.numTrucks):
