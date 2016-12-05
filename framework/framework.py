@@ -150,7 +150,8 @@ class dataDispenser():
 
 oracleTimes = []
 truckVec = []
-truckRange = (2, 8)
+truckRange = (5, 8)
+'''
 for i in xrange(truckRange[0], truckRange[1]):
 	truckVec.append(i)
 	print "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%"
@@ -174,18 +175,18 @@ for i in xrange(truckRange[0], truckRange[1]):
 	greedyTimes.append(dd1.averageResponseTime)
 print greedyTimes
 
-
+'''
 qLearningTimes = []
 for i in xrange(truckRange[0], truckRange[1]):
 	print "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%"
 	print "Qlearning Model: ", i
 	print "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%"
 	qlearningModel = models.GreedyAssignmentModel()
-	dd1 = dataDispenser(datetime.datetime(9,1,1), datetime.timedelta(50), i)
+	dd1 = dataDispenser(datetime.datetime(9,1,1), datetime.timedelta(365), i)
 	dd1.dispenseData(qlearningModel)
 	qLearningTimes.append(dd1.averageResponseTime)
 print qLearningTimes
-
+'''
 
 naiveQLearningTimes = []
 for i in xrange(truckRange[0], truckRange[1]):
@@ -201,4 +202,4 @@ print naiveQLearningTimes
 
 plt.plot(truckVec, greedyTimes, truckVec, oracleTimes, truckVec, qLearningTimes, truckVec, naiveQLearningTimes)
 plt.show()
-
+'''

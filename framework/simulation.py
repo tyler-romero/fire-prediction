@@ -5,6 +5,7 @@ import random
 import math
 import copy
 import sys
+import time
 
 
 class State():
@@ -44,8 +45,8 @@ class Simulation():
 		self.allIncidents = {}
 		self.newIncidents = {}	#Only incidents apperaing in the most recent timestep
 		self.resolvedIncidents = {}
-		self.gridHorizontalGranularity = 10 # must be > 1
-		self.gridVerticleGranularity = 10 # must be > 1
+		self.gridHorizontalGranularity = 15 # must be > 1
+		self.gridVerticleGranularity = 15 # must be > 1
 		self.grid = self.getGrid()
 		self.currentTime = -1
 		for i in xrange(0,self.numTrucks):
@@ -220,7 +221,8 @@ class Simulation():
 
 		sys.stdout.write("Timestep: %d  \r" % (timestep) )
 		sys.stdout.flush()
-		#self.printSimulation()
+		self.printSimulation()
+		time.sleep(1)
 
 		currentState = self.generateCurrentState()
   		action = self.model.chooseAction(currentState)

@@ -5,15 +5,13 @@ import copy
 import sys
 import simulation
 
-#Since our "Model" (Aka now Simulation) was beginning to contain multiple models, 
-#I thought it was best to make our code more modular, so that it is more simple
-#to work with existing models and to add new ones
 
 class genericModel:
 	def __init__(self):
 		self.oracle = 0 #Set this to one if you want dataDispenser to give all data to your model. This is for the oracle
 		#Returns the action dictated by the model at this time
 		self.future_data = None
+
 	def chooseAction(self, state):
 		raise("Override Me")
 
@@ -111,6 +109,7 @@ class GreedyAssignmentModel(genericModel):
 				rrow = random.randint(0,self.nrow-1)
 				rcol = random.randint(0,self.ncol-1)
 				point_list.append((rrow, rcol))
+				
 		assignment_list = [-1]*len(state.truckPos)
 		tempTruckList = copy.deepcopy(state.truckPos)
 		for j, point in enumerate(point_list):
@@ -134,10 +133,11 @@ class GreedyAssignmentModel(genericModel):
 class NaiveQlearningModel(genericModel):
 	def __init__(self):
 		self.trainingOrTesting = 'training'
-		self.qlearn = mdp.QLearningAlgorithm(self.generateActions, 1, self.featureExtractor)
+		self.qlearn = mdp.QLearningAlgorithm(self.generateActions, 0.7, self.featureExtractor)
 		self.mostRecentState = None
 		self.mostRecentAction = None
 		self.numActions = 50	#Number of actions to generate each state
+		self.oracle = 0
 
 	def generateActions(self, state):
 		masterList = []
@@ -202,10 +202,11 @@ class NaiveQlearningModel(genericModel):
 class QlearningModel(genericModel):
 	def __init__(self):
 		self.trainingOrTesting = 'training'
-		self.qlearn = mdp.QLearningAlgorithm(self.generateActions, 1, self.featureExtractor)
+		self.qlearn = mdp.QLearningAlgorithm(self.generateActions, 0.7, self.featureExtractor)
 		self.mostRecentState = None
 		self.mostRecentAction = None
 		self.numActions = 50	#Number of actions to generate each state
+		self.oracle = 0
 
 	def generateActions(self, state):
 		masterList = []
