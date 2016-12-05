@@ -52,7 +52,8 @@ class Simulation():
 			gridRow = random.randint(0,len(self.grid)-1)
 			gridCol = random.randint(0,len(self.grid[0])-1)
 			self.truckPos.append((gridRow,gridCol))
-		self.model.setSimulationParameters(self.expectedTimeSteps, self.gridVerticleGranularity, self.gridHorizontalGranularity)
+		if model != None:
+			self.model.setSimulationParameters(self.expectedTimeSteps, self.gridVerticleGranularity, self.gridHorizontalGranularity)
 		self.incidentCounter = []
 		for i in range(self.gridVerticleGranularity):
 			temp = [0]*self.gridHorizontalGranularity

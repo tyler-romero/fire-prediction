@@ -3,19 +3,26 @@ import mdp
 import random
 import copy
 import sys
+import simulation
 
 #Since our "Model" (Aka now Simulation) was beginning to contain multiple models, 
 #I thought it was best to make our code more modular, so that it is more simple
 #to work with existing models and to add new ones
 
 class genericModel:
-	#Returns the action dictated by the model at this time
+	def __init__(self):
+		self.oracle = 0 #Set this to one if you want dataDispenser to give all data to your model. This is for the oracle
+		#Returns the action dictated by the model at this time
+		self.future_data = None
 	def chooseAction(self, state):
 		raise("Override Me")
 
 	#Option to incorporate feedback
 	def witnessResult(self, state):
 		pass
+
+	def accept_data(self, data):
+		self.future_data = data
 
 	def setSimulationParameters(self, expTimeSteps, nrow, ncol):
 		self.expectedTimeSteps = expTimeSteps
@@ -32,6 +39,58 @@ class RandomModel(genericModel):
 			c = random.randint(0,self.nrow-1)
 			actionList.append((r,c))
 		return actionList
+		
+class Oracle(genericModel):
+	def __init__(self):
+		self.oracle = 1
+		self.currentTimeStep = 0
+		self.sim = simulation.Simulation(None,0) #using this for whereOnGrid functionality
+
+	def chooseAction(self,state):
+		actionList = []
+		point_list = []
+		#Randomly get an assigment list, with greedy assignment of trucks to incidents
+		ongoingList = state.incidentPos.keys()
+		tempTime = self.currentTimeStep+1
+		tempPoint = 0
+		for i in xrange(0,len(state.truckPos)):
+			if len(ongoingList) > i:
+				point_list.append(state.incidentPos[ongoingList[i]])
+			else:
+				found = 0
+				while tempTime < len(self.future_data):
+					if len(self.future_data[tempTime]) > tempPoint:
+						lat = float(self.future_data[tempTime][tempPoint][4].split('_')[0])
+						lng = float(self.future_data[tempTime][tempPoint][4].split('_')[1])
+						loc = self.sim.whereOnGrid(lat,lng)
+						point_list.append(loc)
+						tempPoint+=1
+						found = 1
+						break
+					else:
+						tempPoint = 0
+						tempTime += 1
+				if found == 0:
+					rrow = random.randint(0,self.nrow-1)
+					rcol = random.randint(0,self.ncol-1)
+					point_list.append((rrow, rcol))
+
+		assignment_list = [-1]*len(state.truckPos)
+		tempTruckList = copy.deepcopy(state.truckPos)
+		for j, point in enumerate(point_list):
+			minDist = sys.maxint
+			minIndex = -1
+			for i, truck in enumerate(tempTruckList):
+				if truck is None:
+					continue
+				dist = utilities.manhattanDistance(truck, point)
+				if dist < minDist:
+					minDist = dist
+					minIndex = i
+			assignment_list[minIndex] = point
+			tempTruckList[minIndex] = None
+		self.currentTimeStep+=1
+		return assignment_list
 
 
 
