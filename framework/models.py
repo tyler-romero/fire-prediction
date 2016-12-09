@@ -217,6 +217,8 @@ class QlearningModel(genericModel):
 			#Heuristic to only include points directing trucks to nearby incidents
 			#TODO: what if two incidents at same location?
 			incidentList = state.incidentPos.keys()
+
+			#TODO: This is unintelligent if there are more incidents than trucks
 			for i in xrange(0,len(state.truckPos)):
 				if len(incidentList) > i:
 					point_list.append(state.incidentPos[incidentList[i]])
@@ -226,6 +228,7 @@ class QlearningModel(genericModel):
 					point_list.append((rrow, rcol))
 
 			#Greedily assign each point to the nearest truck
+			#This isnt the worst thing ever
 			assignment_list = [-1]*len(state.truckPos)
 			tempTruckList = copy.deepcopy(state.truckPos)
 			for point in point_list:
@@ -246,13 +249,16 @@ class QlearningModel(genericModel):
 
 	def simulateAction(self, state, action):
 		newState = copy.deepcopy(state)
-		for i, (t_row, t_col) in enumerate(state.truckPos):
+		for i, (t_row, t_col) in enumerate(newState.truckPos):
 			(directive_row, directive_col) = action[i]
 			dy = directive_row - t_row
 			dx = directive_col - t_col
-			move_x = utilities.sign(dx)
-			move_y = utilities.sign(dy)
-			newState.truckPos[i] = (t_row + move_y, t_col + move_x)
+			if abs(dy) > abs(dx):
+				move_y = utilities.sign(dy)
+				newState.truckPos[i] = (t_row + move_y, t_col)
+			else:
+				move_x = utilities.sign(dx)
+				newState.truckPos[i] = (t_row, t_col + move_x)
 		return newState
 
 
@@ -308,15 +314,11 @@ class QlearningModel(genericModel):
 
 
 	##--------------- Reward Functions ------------------------
-	def incidentsResolvedReward(self, newState):
-		return newState.recentlyResolved
-
-
-	#Reward given at each state for distance to NEW Incidents
+	#Reward given at each state for minimizing squared distance to NEW Incidents
 	def newIncidentAppearsReward(self, newState):
 		if len(newState.newIncidents) is not 0:
 			totalDist = sum( min(utilities.manhattanDistance(tPos, iPos) for tPos in newState.truckPos) for incident, iPos in newState.newIncidents.iteritems())	#This could double count some trucks
-			return 100/(totalDist+1)	#No dividing by infinity
+			return 1000/(totalDist**2 + 1)	#No dividing by infinity
 		else:
 			return 0
 	##---------------------------------------------------------

@@ -45,8 +45,8 @@ class Simulation():
 		self.allIncidents = {}
 		self.newIncidents = {}	#Only incidents apperaing in the most recent timestep
 		self.resolvedIncidents = {}
-		self.gridHorizontalGranularity = 15 # must be > 1
-		self.gridVerticleGranularity = 15 # must be > 1
+		self.gridHorizontalGranularity = 10 # must be > 1
+		self.gridVerticleGranularity = 10 # must be > 1
 		self.grid = self.getGrid()
 		self.currentTime = -1
 		for i in xrange(0,self.numTrucks):
@@ -121,16 +121,20 @@ class Simulation():
 
 
 	#Take an action and move the trucks accordingly
+	#Trucks now only move up, down, left, or right
 	def updateTruckLocations(self, truckDirectives):
 		#Action should be a list of tuples where action[i] = (ith truck directive x, ith truck directive y)
 		for i, (t_row, t_col) in enumerate(self.truckPos):
 			(directive_row, directive_col) = truckDirectives[i]
 			dy = directive_row - t_row
 			dx = directive_col - t_col
-			move_x = utilities.sign(dx)
-			move_y = utilities.sign(dy)
-			self.truckPos[i] = (t_row + move_y, t_col + move_x)
-
+			if abs(dy) > abs(dx):
+				move_y = utilities.sign(dy)
+				self.truckPos[i] = (t_row + move_y, t_col)
+			else:
+				move_x = utilities.sign(dx)
+				self.truckPos[i] = (t_row, t_col + move_x)
+			
 
 	#Resolve and update incidents
 	def resolveIncidents(self):
@@ -171,8 +175,7 @@ class Simulation():
 		
 
 	def compileResults(self):
-		#Calculate Average Response Time
-		total = 0
+		#Calculate Average Squared Response Time
 		response_times = []
 		response_times1 = []
 		response_times2 = []
@@ -188,23 +191,21 @@ class Simulation():
 			else:
 				response_times2.append(respTime)
 
-		#THIS BREAKDOWN IS INHERANTLY BIASED, The second half is more difficult
+		#SWICHED TO AVERAGE SQUARED RESPONSE TIME
 		print "=============== TOTAL RESULTS ================="
-		print "Average Response Time: ", sum(response_times) / float(len(response_times))
+		print "Average Squared Response Time: ", sum(time**2 for time in response_times) / float(len(response_times))
 		print "Max Response Time: ", max(response_times)
 		print "Min Response Time: ", min(response_times)
 		print "============= FIRST HALF RESULTS =============="
-		print "Average Response Time: ", sum(response_times1) / float(len(response_times1))
+		print "Average Squared Response Time: ", sum(time**2 for time in response_times1) / float(len(response_times1))
 		print "Max Response Time: ", max(response_times1)
 		print "Min Response Time: ", min(response_times1)
 		print "============= SECOND HALF RESULTS ============="
-		print "Average Response Time: ", sum(response_times2) / float(len(response_times2))
+		print "Average Squared Response Time: ", sum(time**2 for time in response_times2) / float(len(response_times2))
 		print "Max Response Time: ", max(response_times2)
 		print "Min Response Time: ", min(response_times2)
-		respTimes = open('responseTimes.txt', 'w')
-		for item in response_times:
-  			respTimes.write("%s\n" % item)
-  		return sum(response_times) / float(len(response_times))
+
+  		return sum(time**2 for time in response_times) / float(len(response_times))
 
 
 	#Recieve Data, Move Trucks
@@ -221,8 +222,7 @@ class Simulation():
 
 		sys.stdout.write("Timestep: %d  \r" % (timestep) )
 		sys.stdout.flush()
-		self.printSimulation()
-		time.sleep(1)
+		#self.printSimulation()
 
 		currentState = self.generateCurrentState()
   		action = self.model.chooseAction(currentState)
