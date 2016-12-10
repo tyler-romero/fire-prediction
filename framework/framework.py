@@ -6,7 +6,7 @@ import math
 import copy
 import sys
 import simulation
-import matplotlib.pyplot as plt
+
 
 
 class dataDispenser():
@@ -148,59 +148,4 @@ class dataDispenser():
 
 
 
-truckRange = (3, 7)
-truckVec = []
-for i in xrange(truckRange[0], truckRange[1]):
-	truckVec.append(i)
 
-'''
-oracleTimes = []
-for i in xrange(truckRange[0], truckRange[1]):
-	print "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%"
-	print "Oracle Model: ", i
-	print "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%"
-	oracleModel = models.Oracle()
-	dd1 = dataDispenser(datetime.datetime(9,1,1), datetime.timedelta(50), i)
-	dd1.dispenseData(oracleModel)
-	oracleTimes.append(dd1.averageResponseTime)
-print oracleTimes
-
-'''
-greedyTimes = []
-for i in xrange(truckRange[0], truckRange[1]):
-	print "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%"
-	print "Greedy Model: ", i
-	print "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%"
-	greedymodel = models.GreedyAssignmentModel()
-	dd1 = dataDispenser(datetime.datetime(9,1,1), datetime.timedelta(10), i)
-	dd1.dispenseData(greedymodel)
-	greedyTimes.append(dd1.averageResponseTime)
-print greedyTimes
-
-
-qLearningTimes = []
-for i in xrange(truckRange[0], truckRange[1]):
-	print "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%"
-	print "Qlearning Model: ", i
-	print "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%"
-	qlearningModel = models.QlearningModel()
-	dd1 = dataDispenser(datetime.datetime(9,1,1), datetime.timedelta(10), i)
-	dd1.dispenseData(qlearningModel)
-	qLearningTimes.append(dd1.averageResponseTime)
-print qLearningTimes
-
-
-naiveQLearningTimes = []
-for i in xrange(truckRange[0], truckRange[1]):
-	print "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%"
-	print "Naive Qlearning Model: ", i
-	print "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%"
-	naiveQModel = models.NaiveQlearningModel()
-	dd1 = dataDispenser(datetime.datetime(9,1,1), datetime.timedelta(10), i)
-	dd1.dispenseData(naiveQModel)
-	naiveQLearningTimes.append(dd1.averageResponseTime)
-print naiveQLearningTimes
-
-
-plt.plot(truckVec, greedyTimes, truckVec, qLearningTimes, truckVec, naiveQLearningTimes)
-plt.show()

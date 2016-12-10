@@ -38,6 +38,8 @@ class RandomModel(genericModel):
 			actionList.append((r,c))
 		return actionList
 		
+
+
 class Oracle(genericModel):
 	def __init__(self):
 		self.oracle = 1
@@ -129,14 +131,12 @@ class GreedyAssignmentModel(genericModel):
 
 
 #Qlearning model, without any features or rewards.
-#WHY DOES THIS WORK THE BEST?
 class NaiveQlearningModel(genericModel):
-	def __init__(self):
-		self.trainingOrTesting = 'training'
-		self.qlearn = mdp.QLearningAlgorithm(self.generateActions, 0.7, self.featureExtractor)
+	def __init__(self, explorationProb = 0.2, numActions = 100):
+		self.qlearn = mdp.QLearningAlgorithm(self.generateActions, explorationProb, self.featureExtractor)
 		self.mostRecentState = None
 		self.mostRecentAction = None
-		self.numActions = 50	#Number of actions to generate each state
+		self.numActions = numActions	#Number of actions to generate each state
 		self.oracle = 0
 
 	def generateActions(self, state):
@@ -192,20 +192,16 @@ class NaiveQlearningModel(genericModel):
 	def witnessResult(self, newState):
 		reward = self.dumbReward()
 		self.qlearn.incorporateFeedback(self.mostRecentState, self.mostRecentAction, reward, newState)
-		if newState.timestep > self.expectedTimeSteps/2:
-			self.trainingOrTesting = 'testing'
-			self.qlearn.explorationProb = 0
 
 
 
 # OUR ACTUAL MODEL
 class QlearningModel(genericModel):
-	def __init__(self):
-		self.trainingOrTesting = 'training'
-		self.qlearn = mdp.QLearningAlgorithm(self.generateActions, 0.7, self.featureExtractor)
+	def __init__(self, explorationProb = 0.2, numActions = 100):
+		self.qlearn = mdp.QLearningAlgorithm(self.generateActions, explorationProb, self.featureExtractor)
 		self.mostRecentState = None
 		self.mostRecentAction = None
-		self.numActions = 50	#Number of actions to generate each state
+		self.numActions = numActions	#Number of actions to generate each state
 		self.oracle = 0
 
 	def generateActions(self, state):
@@ -331,9 +327,5 @@ class QlearningModel(genericModel):
 		return action
 
 	def witnessResult(self, newState):
-		#reward = self.incidentsResolvedReward(newState)
 		reward = self.newIncidentAppearsReward(newState)
 		self.qlearn.incorporateFeedback(self.mostRecentState, self.mostRecentAction, reward, newState)
-		if newState.timestep > self.expectedTimeSteps/2:
-			self.trainingOrTesting = 'testing'
-			self.qlearn.explorationProb = 0

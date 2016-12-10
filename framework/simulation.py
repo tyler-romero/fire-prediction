@@ -177,8 +177,6 @@ class Simulation():
 	def compileResults(self):
 		#Calculate Average Squared Response Time
 		response_times = []
-		response_times1 = []
-		response_times2 = []
 		myLength = len(self.resolvedIncidents)/2.0
 		count = 0
 		for incident_key, (t1, loc1) in self.resolvedIncidents.iteritems():
@@ -186,24 +184,12 @@ class Simulation():
 			t2, loc2 = self.allIncidents[incident_key]
 			respTime = t1-t2
 			response_times.append(respTime)
-			if t1 < self.expectedTimeSteps/2:
-				response_times1.append(respTime)
-			else:
-				response_times2.append(respTime)
 
 		#SWICHED TO AVERAGE SQUARED RESPONSE TIME
 		print "=============== TOTAL RESULTS ================="
 		print "Average Squared Response Time: ", sum(time**2 for time in response_times) / float(len(response_times))
 		print "Max Response Time: ", max(response_times)
 		print "Min Response Time: ", min(response_times)
-		print "============= FIRST HALF RESULTS =============="
-		print "Average Squared Response Time: ", sum(time**2 for time in response_times1) / float(len(response_times1))
-		print "Max Response Time: ", max(response_times1)
-		print "Min Response Time: ", min(response_times1)
-		print "============= SECOND HALF RESULTS ============="
-		print "Average Squared Response Time: ", sum(time**2 for time in response_times2) / float(len(response_times2))
-		print "Max Response Time: ", max(response_times2)
-		print "Min Response Time: ", min(response_times2)
 
   		return sum(time**2 for time in response_times) / float(len(response_times))
 

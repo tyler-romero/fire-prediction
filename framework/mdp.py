@@ -34,7 +34,6 @@ class QLearningAlgorithm(RLAlgorithm):
     # |explorationProb|, take a random action.
     def getAction(self, state):
         state_actions = self.possible_actions(state)
-        truck1_actions = []
         self.numIters += 1
         if random.random() < self.explorationProb:
             return random.choice(state_actions)
