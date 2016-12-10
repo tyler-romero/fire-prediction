@@ -34,7 +34,7 @@ class Simulation():
 	Oracle: The oracle knows everything, and will make sure a truck is at each location of each incident
 	at the correct timestep. Therefore the oracle should have 0 loss.
 	'''
-	def __init__(self, model, timeStepsIncoming, ts=4):
+	def __init__(self, model, timeStepsIncoming, grid, ts=4):
 		self.model = model	#The model we are simulating
 		self.expectedTimeSteps = timeStepsIncoming #Added this to change the exploration prob halfway through
 		self.numTrucks = ts  # must be >= 1
@@ -45,9 +45,9 @@ class Simulation():
 		self.allIncidents = {}
 		self.newIncidents = {}	#Only incidents apperaing in the most recent timestep
 		self.resolvedIncidents = {}
-		self.gridHorizontalGranularity = 10 # must be > 1
-		self.gridVerticleGranularity = 10 # must be > 1
-		self.grid = self.getGrid()
+		self.grid = grid
+		self.gridVerticleGranularity = len(grid)
+		self.gridHorizontalGranularity = len(grid[0])
 		self.currentTime = -1
 		for i in xrange(0,self.numTrucks):
 			gridRow = random.randint(0,len(self.grid)-1)
@@ -63,61 +63,6 @@ class Simulation():
 	#Returns the current state. Which is just a compact representation of the model
 	def generateCurrentState(self):
 		return State(self.currentTime, self.truckPos, self.ongoingIncidents, self.recentlyResolved, self.newIncidents)
-
-
-	def getGrid(self):
-		#grid[0][0] is the northwest corner of sanDiego and grid[n][m] is the southeast.
-		#This means that the latitude  at grid[0][0] is greater than the latitude  at grid[n][m]
-		#and 			 the longitude at grid[0][0] is less    than the longitude at grid[n][m]
-		corners = [(32.981625, -117.270982), (32.692295, -117.009370)]
-		vertSteps = self.gridVerticleGranularity
-		horizontalSteps = self.gridHorizontalGranularity
-		deltaLat = abs(corners[0][0]-corners[1][0]) 
-		deltaLong = abs(corners[0][1]-corners[1][1]) 
-		grid = []
-		for r in xrange(0,self.gridVerticleGranularity):
-			tempRow = []
-			for c in xrange(0,self.gridHorizontalGranularity):
-				curLat = corners[0][0] - r*(deltaLat/(self.gridVerticleGranularity-1))
-				curLong = corners[0][1] + c*(deltaLong/(self.gridHorizontalGranularity-1))
-				tempRow.append((curLat,curLong))
-			grid.append(tempRow)
-		return grid
-
-
-	def whereOnGrid(self,lat,longd):
-		(curRow, curCol) = (0, 0)
-		if lat < self.grid[len(self.grid)-1][curCol][0]:
-			curRow = len(self.grid)-1
-		else:
-			while lat < self.grid[curRow][curCol][0]:
-				curRow += 1
-		if longd > self.grid[curRow][len(self.grid[curRow])-1][1]:
-			curCol = len(self.grid[curRow])-1
-		else:
-			while longd > self.grid[curRow][curCol][1]:
-				curCol += 1
-		return (curRow,curCol)
-
-
-	def minDistFromIncident(self, listOfData):
-		totalNum = len(listOfData)
-		totalDist = 0
-		for i in xrange(0,totalNum):
-			latLong = []
-			latLong.append(float(listOfData[i][4].split('-')[0]))
-			latLong.append(float(listOfData[i][4].split('-')[1]))
-			dataPosition = None
-			dataPosition = latLong
-			minTruck = 0
-			minDist = utilities.manhattanDistance(self.truckPos[0], dataPosition)
-			for truck in xrange(0,self.numTrucks):
-				myDist = utilities.manhattanDistance(self.truckPos[truck], dataPosition) #two tuples
-				if myDist < minDist:
-					minDist = myDist
-					minTruck = truck
-			totalDist += minDist
-		return totalDist
 
 
 	#Take an action and move the trucks accordingly
@@ -153,9 +98,7 @@ class Simulation():
 		self.newIncidents.clear()
 		for datapoint in listOfData:
 			incident_key = datapoint[1]
-			lati = float(datapoint[4].split('_')[0])
-			lond = float(datapoint[4].split('_')[1])
-			location = self.whereOnGrid(lati, lond)
+			location = datapoint[4]
 			x, y = location
 			self.incidentCounter[x][y] += 1
 			self.ongoingIncidents[incident_key] = location

@@ -21,7 +21,10 @@ class dataDispenser():
 		self.end = day+timerange
 		self.averageResponseTime = None
 		self.ts =ts
-
+		self.corners = [(33.112853, -117.358872), (32.644608, -116.883714)]
+		self.gridHorizontalGranularity = 10 # must be > 1
+		self.gridVerticleGranularity = 10 # must be > 1
+		self.grid = self.getGrid()
 		#self.data is a list with 8 elements: the lists of data for each year
 		for fileName in dataFileNames:
 			self.timeStep = 60
@@ -35,7 +38,12 @@ class dataDispenser():
 				dateTime = self.getDateTime(splitList[8])
 				if splitList[4] == '0_0':
 					continue
-				#splitList = self.fixLatLong(splitList)
+				lati = float(splitList[4].split('_')[0])
+				lond = float(splitList[4].split('_')[1])
+				location = self.whereOnGrid(lati, lond)
+				if location == None:
+					continue
+				splitList[4] = location
 				if len(splitList) != 11 and len(splitList) != 12:
 					print splitList
 					raise Exception('Data is not proper number of fields')
@@ -63,9 +71,42 @@ class dataDispenser():
 		return returnList
 
 
-	def fixLatLong(self,myList):
-		myList[4] = myList[4].split('-')[0]+'_-'+myList[4].split('-')[1]
-		return myList
+	def getGrid(self):
+		#grid[0][0] is the northwest corner of sanDiego and grid[n][m] is the southeast.
+		#This means that the latitude  at grid[0][0] is greater than the latitude  at grid[n][m]
+		#and 			 the longitude at grid[0][0] is less    than the longitude at grid[n][m]
+		vertSteps = self.gridVerticleGranularity
+		horizontalSteps = self.gridHorizontalGranularity
+		deltaLat = abs(self.corners[0][0]-self.corners[1][0]) 
+		deltaLong = abs(self.corners[0][1]-self.corners[1][1]) 
+		grid = []
+		for r in xrange(0,self.gridVerticleGranularity):
+			tempRow = []
+			for c in xrange(0,self.gridHorizontalGranularity):
+				curLat = self.corners[0][0] - r*(deltaLat/(self.gridVerticleGranularity))
+				curLong = self.corners[0][1] + c*(deltaLong/(self.gridHorizontalGranularity))
+				tempRow.append((curLat,curLong))
+			grid.append(tempRow)
+		return grid
+
+	def whereOnGrid(self,lat,longd):
+		if lat > self.corners[0][0] or lat < self.corners[1][0]:
+			return None
+		if longd < self.corners[0][1] or longd > self.corners[1][1]:
+			return None
+
+		curRow = 0
+		curCol = 0
+		while curRow < self.gridVerticleGranularity-1:
+			if self.grid[curRow+1][0][0] < lat:
+				break
+			curRow += 1
+		while curCol < self.gridHorizontalGranularity-1:
+			if self.grid[0][curCol+1][1] > longd:
+				break
+			curCol += 1
+
+		return (curRow,curCol)
 
 
 	def getDateTime(self,timeString):
@@ -131,7 +172,7 @@ class dataDispenser():
 			currentTime = currentTime +timeStep
 			timeStepNumber += 1
 
-		simulationInstance = simulation.Simulation(model, timeStepNumber, self.ts)
+		simulationInstance = simulation.Simulation(model, timeStepNumber, self.grid, self.ts)
 		timeStepNumber = 0
 		i = 0
 		while i < len(dataMapper):
