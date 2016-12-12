@@ -132,8 +132,8 @@ class GreedyAssignmentModel(genericModel):
 
 #Qlearning model, without any features or rewards.
 class NaiveQlearningModel(genericModel):
-	def __init__(self, explorationProb = 0.2, numActions = 100):
-		self.qlearn = mdp.QLearningAlgorithm(self.generateActions, explorationProb, self.featureExtractor)
+	def __init__(self, discount = 0.5, explorationProb = 0.2, numActions = 100):
+		self.qlearn = mdp.QLearningAlgorithm(self.generateActions, discount, self.featureExtractor, explorationProb)
 		self.mostRecentState = None
 		self.mostRecentAction = None
 		self.numActions = numActions	#Number of actions to generate each state
@@ -197,8 +197,8 @@ class NaiveQlearningModel(genericModel):
 
 # OUR ACTUAL MODEL
 class QlearningModel(genericModel):
-	def __init__(self, explorationProb = 0.2, numActions = 100):
-		self.qlearn = mdp.QLearningAlgorithm(self.generateActions, explorationProb, self.featureExtractor)
+	def __init__(self, discount = 0.5, explorationProb = 0.2, numActions = 100):
+		self.qlearn = mdp.QLearningAlgorithm(self.generateActions, discount, self.featureExtractor, explorationProb)
 		self.mostRecentState = None
 		self.mostRecentAction = None
 		self.numActions = numActions	#Number of actions to generate each state
@@ -281,7 +281,6 @@ class QlearningModel(genericModel):
 			for other_truck in xrange(0,numTrucks):
 				if truck == other_truck:
 					continue
-				#print truck, other_truck, self.truckPos, self.numTrucks
 				if utilities.manhattanDistance(newState.truckPos[truck],newState.truckPos[other_truck]) < myMin:
 					myMin = utilities.manhattanDistance(newState.truckPos[truck],newState.truckPos[other_truck])
 					minPos = other_truck
@@ -289,23 +288,24 @@ class QlearningModel(genericModel):
 		truckDistKey = ('truckDist',round(totalMin/float(numTrucks)))
 		results.append((truckDistKey,1))
 
-		#sum of distances from incidents to nearest truck
-		totalMin = 0
-		numIncidents = len(newState.incidentPos)
-		for key, incident in newState.incidentPos.iteritems():
-			myMin = self.nrow + self.ncol
-			minPos = -1
-			for truck in xrange(0, numTrucks):
-				if utilities.manhattanDistance(newState.truckPos[truck], incident) < myMin:
-					myMin = utilities.manhattanDistance(newState.truckPos[truck], incident)
-					minPos = other_truck
-			totalMin += myMin
+		#Indicators on general position of trucks
+		#Essentially this "reduces" the grainularity of the grid from the perspective of Qlearning
 
-		incidentKey = ('incidentDist', 0 if numIncidents == 0 else round(totalMin/float(numIncidents)))
-		results.append((incidentKey,1))
+		granularityScale = 3	# Use 2 or 3
+		for truck in newState.truckPos:
+			xpos, ypos = truck
+			ysection = ypos / granularityScale
+			xsection = xpos / granularityScale
+			sectionIndiator = ('SectionIndicator', (xsection, ysection))
+			columnIndicator = ('ColIndicator', ysection)
+			rowIndicator = ('RowIndicator', xsection)
+			if sectionIndiator not in results:
+				results.append((sectionIndiator,1))
+			if columnIndicator not in results:
+				results.append((columnIndicator,1))
+			if rowIndicator not in results:
+				results.append((rowIndicator,1))
 
-		#TODO: Include time of day as a feature?
-		#TODO: Include average horizontal and average vertical position of trucks as features?
 		return results
 
 
@@ -315,6 +315,13 @@ class QlearningModel(genericModel):
 		if len(newState.newIncidents) is not 0:
 			totalDist = sum( min(utilities.manhattanDistance(tPos, iPos) for tPos in newState.truckPos) for incident, iPos in newState.newIncidents.iteritems())	#This could double count some trucks
 			return 1000/(totalDist**2 + 1)	#No dividing by infinity
+		else:
+			return 0
+
+	def newIncidentAppearsReward1(self, newState):
+		if len(newState.newIncidents) is not 0:
+			totalDist = sum( min(utilities.manhattanDistance(tPos, iPos) for tPos in newState.truckPos) for incident, iPos in newState.newIncidents.iteritems())	#This could double count some trucks
+			return -1*totalDist
 		else:
 			return 0
 	##---------------------------------------------------------
@@ -327,5 +334,5 @@ class QlearningModel(genericModel):
 		return action
 
 	def witnessResult(self, newState):
-		reward = self.newIncidentAppearsReward(newState)
+		reward = self.newIncidentAppearsReward1(newState)
 		self.qlearn.incorporateFeedback(self.mostRecentState, self.mostRecentAction, reward, newState)

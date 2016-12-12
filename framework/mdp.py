@@ -38,7 +38,7 @@ class QLearningAlgorithm(RLAlgorithm):
         if random.random() < self.explorationProb:
             return random.choice(state_actions)
         else:
-            return max((self.getQ(state, action), action) for action in state_actions)[1]
+            return max(((self.getQ(state, action), action) for action in state_actions), key=lambda x: x[0])[1]
 
     # Call this function to get the step size to update the weights.
     def getStepSize(self):
