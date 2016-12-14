@@ -1,16 +1,13 @@
 import utilities
-import mdp
+import qlearning as mdp
 import random
 import copy
 import sys
-import simulation
 
 
 class genericModel:
 	def __init__(self):
-		self.oracle = 0 #Set this to one if you want dataDispenser to give all data to your model. This is for the oracle
-		#Returns the action dictated by the model at this time
-		self.future_data = None
+		raise("Override Me")
 
 	def chooseAction(self, state):
 		raise("Override Me")
@@ -18,9 +15,6 @@ class genericModel:
 	#Option to incorporate feedback
 	def witnessResult(self, state):
 		pass
-
-	def accept_data(self, data):
-		self.future_data = data
 
 	def setSimulationParameters(self, expTimeSteps, nrow, ncol):
 		self.expectedTimeSteps = expTimeSteps
@@ -44,7 +38,6 @@ class Oracle(genericModel):
 	def __init__(self):
 		self.oracle = 1
 		self.currentTimeStep = 0
-		self.sim = simulation.Simulation(None,0) #using this for whereOnGrid functionality
 
 	def chooseAction(self,state):
 		actionList = []
@@ -60,10 +53,7 @@ class Oracle(genericModel):
 				found = 0
 				while tempTime < len(self.future_data):
 					if len(self.future_data[tempTime]) > tempPoint:
-						lat = float(self.future_data[tempTime][tempPoint][4].split('_')[0])
-						lng = float(self.future_data[tempTime][tempPoint][4].split('_')[1])
-						loc = self.sim.whereOnGrid(lat,lng)
-						point_list.append(loc)
+						point_list.append(self.future_data[tempTime][tempPoint][4])
 						tempPoint+=1
 						found = 1
 						break
@@ -92,9 +82,15 @@ class Oracle(genericModel):
 		self.currentTimeStep+=1
 		return assignment_list
 
+	def accept_data(self, data):
+		self.future_data = data
 
 
+#Our Baseline Model
 class GreedyAssignmentModel(genericModel):
+	def __init__(self):
+		self.oracle = 0
+
 	def chooseAction(self, state):
 		action = self.generateAction(state)
 		return action
@@ -130,78 +126,13 @@ class GreedyAssignmentModel(genericModel):
 
 
 
-#Qlearning model, without any features or rewards.
-class NaiveQlearningModel(genericModel):
-	def __init__(self, discount = 0.5, explorationProb = 0.2, numActions = 100):
-		self.qlearn = mdp.QLearningAlgorithm(self.generateActions, discount, self.featureExtractor, explorationProb)
-		self.mostRecentState = None
-		self.mostRecentAction = None
-		self.numActions = numActions	#Number of actions to generate each state
-		self.oracle = 0
-
-	def generateActions(self, state):
-		masterList = []
-		for actionNum in range(self.numActions):
-			#For each truck, insert a point into point_list
-			point_list = []
-
-			#Heuristic to only include points directing trucks to nearby incidents
-			#TODO: what if two incidents at same location?
-			incidentList = state.incidentPos.keys()
-			for i in xrange(0,len(state.truckPos)):
-				if len(incidentList) > i:
-					point_list.append(state.incidentPos[incidentList[i]])
-				else:
-					rrow = random.randint(0, self.nrow-1)
-					rcol = random.randint(0, self.ncol-1)
-					point_list.append((rrow, rcol))
-
-			#Greedily assign each point to the nearest truck
-			assignment_list = [-1]*len(state.truckPos)
-			tempTruckList = copy.deepcopy(state.truckPos)
-			for point in point_list:
-				minDist = sys.maxint
-				minIndex = 0
-				for i, truck in enumerate(tempTruckList):
-					if truck is None:
-						continue
-					dist = utilities.manhattanDistance(truck, point)
-					if dist < minDist:
-						minDist = dist
-						minIndex = i
-				assignment_list[minIndex] = point
-				tempTruckList[minIndex] = None
-			masterList.append(assignment_list)
-		return masterList
-
-	def featureExtractor(self,state,action):
-		return []
-
-	##--------------- Reward Functions ------------------------
-	def dumbReward(self):
-		return 0
-
-	##---------------------------------------------------------
-
-	def chooseAction(self, currentState):
-		self.mostRecentState = currentState
-		action = self.qlearn.getAction(currentState)
-		self.mostRecentAction = action
-		return action
-
-	def witnessResult(self, newState):
-		reward = self.dumbReward()
-		self.qlearn.incorporateFeedback(self.mostRecentState, self.mostRecentAction, reward, newState)
-
-
-
 # OUR ACTUAL MODEL
 class QlearningModel(genericModel):
 	def __init__(self, discount = 0.5, explorationProb = 0.2, numActions = 100):
 		self.qlearn = mdp.QLearningAlgorithm(self.generateActions, discount, self.featureExtractor, explorationProb)
 		self.mostRecentState = None
 		self.mostRecentAction = None
-		self.numActions = numActions	#Number of actions to generate each state
+		self.numActions = numActions	#Number of actions to generate in each state
 		self.oracle = 0
 
 	def generateActions(self, state):
@@ -210,11 +141,8 @@ class QlearningModel(genericModel):
 			#For each truck, insert a point into point_list
 			point_list = []
 
-			#Heuristic to only include points directing trucks to nearby incidents
-			#TODO: what if two incidents at same location?
+			#Include points directing trucks to nearby incidents
 			incidentList = state.incidentPos.keys()
-
-			#TODO: This is unintelligent if there are more incidents than trucks
 			for i in xrange(0,len(state.truckPos)):
 				if len(incidentList) > i:
 					point_list.append(state.incidentPos[incidentList[i]])
@@ -224,7 +152,6 @@ class QlearningModel(genericModel):
 					point_list.append((rrow, rcol))
 
 			#Greedily assign each point to the nearest truck
-			#This isnt the worst thing ever
 			assignment_list = [-1]*len(state.truckPos)
 			tempTruckList = copy.deepcopy(state.truckPos)
 			for point in point_list:
@@ -259,17 +186,10 @@ class QlearningModel(genericModel):
 
 
 	def featureExtractor(self,state,action):
-		#The way I am doing this is, instead of how in blackjack where we did (state,action) pairs
-		#as the feature key, now I am doing (1, some_helpful_value) -- the one so that it is included
-		#for every state no matter what's happening, and the value to hopefully kind of represent
-		#the action? I could be doing this wrong but I think this is right
 		results = []
 
 		#Features should help to distinguish between actions!
-		#Every action has the same state, soley state based features
-		#cause every action to have the same weight, and its essentially
-		#random choice! By evaluating potential future states, we get a better
-		#distinction between actions
+		#This allows us to evaluate the truck locations after an action has taken place
 		newState = self.simulateAction(state,action)
 
 		#sum of distance from truck to nearest truck
@@ -290,7 +210,6 @@ class QlearningModel(genericModel):
 
 		#Indicators on general position of trucks
 		#Essentially this "reduces" the grainularity of the grid from the perspective of Qlearning
-
 		granularityScale = 3	# Use 2 or 3
 		for truck in newState.truckPos:
 			xpos, ypos = truck
@@ -310,15 +229,7 @@ class QlearningModel(genericModel):
 
 
 	##--------------- Reward Functions ------------------------
-	#Reward given at each state for minimizing squared distance to NEW Incidents
 	def newIncidentAppearsReward(self, newState):
-		if len(newState.newIncidents) is not 0:
-			totalDist = sum( min(utilities.manhattanDistance(tPos, iPos) for tPos in newState.truckPos) for incident, iPos in newState.newIncidents.iteritems())	#This could double count some trucks
-			return 1000/(totalDist**2 + 1)	#No dividing by infinity
-		else:
-			return 0
-
-	def newIncidentAppearsReward1(self, newState):
 		if len(newState.newIncidents) is not 0:
 			totalDist = sum( min(utilities.manhattanDistance(tPos, iPos) for tPos in newState.truckPos) for incident, iPos in newState.newIncidents.iteritems())	#This could double count some trucks
 			return -1*totalDist
@@ -334,5 +245,5 @@ class QlearningModel(genericModel):
 		return action
 
 	def witnessResult(self, newState):
-		reward = self.newIncidentAppearsReward1(newState)
+		reward = self.newIncidentAppearsReward(newState)
 		self.qlearn.incorporateFeedback(self.mostRecentState, self.mostRecentAction, reward, newState)

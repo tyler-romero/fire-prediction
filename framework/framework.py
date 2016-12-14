@@ -10,21 +10,20 @@ import simulation
 
 
 class dataDispenser():
-	def __init__(self,day,timerange,ts=4,dataFileNames=['data/new_data/new_incidents2009.csv']):
-		#,'incidents2010.csv',\
-		#'incidents2011.csv','incidents2012.csv','incidents2013.csv','incidents2014.csv',\
-		#'incidents2015.csv','incidents2016.csv']):
+	def __init__(self,day,timerange,ts=4,dataFileNames=['new_incidents2009.csv'], verbose = False):
 		#Emergency Medical Response,FS09000001,San Diego,Stabbing/Gunshot (L1),2800 BROADWAY,28TH ST/29TH ST,SAN DIEGO,92102,1/1/09 0:05:49,1/1/09 0:08:08,0:02:19
 		self.data = []
 		self.dataLength = []
 		self.start = day
 		self.end = day+timerange
 		self.averageResponseTime = None
-		self.ts =ts
-		self.corners = [(33.112853, -117.358872), (32.644608, -116.883714)]
+		self.ts = ts
+		self.corners = [(32.981625, -117.270982), (32.692295, -117.009370)]
 		self.gridHorizontalGranularity = 10 # must be > 1
 		self.gridVerticleGranularity = 10 # must be > 1
 		self.grid = self.getGrid()
+		self.verbose = verbose
+
 		#self.data is a list with 8 elements: the lists of data for each year
 		for fileName in dataFileNames:
 			self.timeStep = 60
@@ -148,8 +147,8 @@ class dataDispenser():
 					break
 			returnList.append(passList)
 			timeStepNumber+=1
-
 		model.accept_data(returnList)
+
 
 	def dispenseData(self, model):
 		if model.oracle == 1:
@@ -172,7 +171,7 @@ class dataDispenser():
 			currentTime = currentTime +timeStep
 			timeStepNumber += 1
 
-		simulationInstance = simulation.Simulation(model, timeStepNumber, self.grid, self.ts)
+		simulationInstance = simulation.Simulation(model, timeStepNumber, self.grid, self.ts, self.verbose)
 		timeStepNumber = 0
 		i = 0
 		while i < len(dataMapper):

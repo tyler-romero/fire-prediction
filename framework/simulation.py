@@ -27,14 +27,8 @@ class Simulation():
 	of the grid can be set in the initialization function. Each truck is at a certain point, and can
 	travel one grid space per timestep (this is a simplifying assumption that isn't necessarily close
 	to reality but we can change this as we work on the project).
-
-	Baseline: The baseline is simple: it chooses a random step for each truck at each timestep, no matter
-	what the data says. The baseline should have a lot of loss.
-
-	Oracle: The oracle knows everything, and will make sure a truck is at each location of each incident
-	at the correct timestep. Therefore the oracle should have 0 loss.
 	'''
-	def __init__(self, model, timeStepsIncoming, grid, ts=4):
+	def __init__(self, model, timeStepsIncoming, grid, ts=4, verbose = False):
 		self.model = model	#The model we are simulating
 		self.expectedTimeSteps = timeStepsIncoming #Added this to change the exploration prob halfway through
 		self.numTrucks = ts  # must be >= 1
@@ -49,6 +43,7 @@ class Simulation():
 		self.gridVerticleGranularity = len(grid)
 		self.gridHorizontalGranularity = len(grid[0])
 		self.currentTime = -1
+		self.verbose = verbose
 		for i in xrange(0,self.numTrucks):
 			gridRow = random.randint(0,len(self.grid)-1)
 			gridCol = random.randint(0,len(self.grid[0])-1)
@@ -149,9 +144,12 @@ class Simulation():
 			newState = self.generateCurrentState()
 			self.model.witnessResult(newState)
 
-		sys.stdout.write("Timestep: %d  \r" % (timestep) )
-		sys.stdout.flush()
-		#self.printSimulation()
+		if self.verbose:
+			self.printSimulation()
+			time.sleep(1.5)
+		else:
+			sys.stdout.write("Timestep: %d  \r" % (timestep) )
+			sys.stdout.flush()
 
 		currentState = self.generateCurrentState()
   		action = self.model.chooseAction(currentState)
