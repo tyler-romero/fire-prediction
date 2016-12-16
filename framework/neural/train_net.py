@@ -3,7 +3,7 @@ from keras.models import Sequential
 from keras.layers.core import Dense,Activation
 
 
-size_of_y_grid = (100,100)
+size_of_y_grid = (20,20)
 
 
 x_train_temp = open('data/x_train.txt','r')
@@ -108,33 +108,37 @@ print np.shape(y_test_arr)
 
 model = Sequential()
 model.add(Dense(input_dim=67, output_dim=ys, activation='linear'))
+model.add(Dense(input_dim=ys, output_dim=ys, activation='linear'))
+model.add(Dense(input_dim=ys, output_dim=ys, activation='linear'))
 
 #model.add(Dense(input_dim=9, output_dim=3*3))
 #model.add(Dense(input_dim=3*3, output_dim=19*20))
 #model.add(Dense(input_dim=19*20, output_dim=19*20))
 model.add(Activation('relu'))
 model.compile(loss='mean_squared_error', optimizer='adagrad')
+single_y_train = y_train_arr
+single_y_valid = y_valid_arr
+model.fit(x_train_arr, single_y_train, batch_size=100, nb_epoch=5, shuffle=True, validation_data=(x_valid_arr, single_y_valid))
 
-model.fit(x_train_arr, y_train_arr, batch_size=100, nb_epoch=5, shuffle=True, validation_data=(x_valid_arr, y_valid_arr))
-
-tresults = model.evaluate(x_test_arr, y_test_arr)
+single_y_test = y_test_arr
+tresults = model.evaluate(x_test_arr, single_y_test)
 
 print tresults
 
 y = model.predict(x_test_arr, verbose=1)
 
 
-average_y_train = np.average(y_train_arr,axis=0)
+average_y_train = np.average(single_y_test,axis=0)
 total_sum=0
 total = 0 
-for i in xrange(0,np.shape(y_test_arr)[0]):
+for i in xrange(0,np.shape(single_y_test)[0]):
 	total += 1
-	total_sum += np.linalg.norm(average_y_train-y_test_arr[i])
+	total_sum += np.linalg.norm(average_y_train-single_y_test[i])
 total_sum_2 = 0
 total_2 = 0
 for i in xrange(0,np.shape(y)[0]):
 	total_2 += 1
-	total_sum_2  += np.linalg.norm(y[i]-y_test_arr[i])
+	total_sum_2  += np.linalg.norm(y[i]-single_y_test[i])
 
 print 'mean_squared_error ', float(total_sum)/float(total)
 print 'net_squared_error', float(total_sum_2)/float(total_2)
