@@ -6,6 +6,7 @@ import math
 import random
 
 
+
 class gridDispenser():
 	def __init__(self,day,timerange,dataFileNames= \
 		[\
@@ -21,10 +22,10 @@ class gridDispenser():
 		#Emergency Medical Response,FS09000001,San Diego,Stabbing/Gunshot (L1),2800 BROADWAY,28TH ST/29TH ST,SAN DIEGO,92102,1/1/09 0:05:49,1/1/09 0:08:08,0:02:19
 		self.data = []
 		self.dataLength = []
-		self.gridHorizontalGranularity = 100
+		self.gridHorizontalGranularity = 20
 		self.corners = [(33.112853, -117.358872), (32.644608, -116.883714)]
 		ratio = (self.corners[0][0]-self.corners[1][0])/(self.corners[1][1]-self.corners[0][1])
-		self.gridVerticleGranularity = 100
+		self.gridVerticleGranularity = 20
 		self.grid = self.getGrid()
 		self.start = day
 		self.end = day+timerange
