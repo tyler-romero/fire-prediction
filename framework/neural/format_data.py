@@ -134,12 +134,12 @@ class gridDispenser():
 		return gridMapper
 
 	def setup_network(self):
-		x_train = open('data/x_train.txt','w')
-		y_train = open('data/y_train.txt','w')
-		x_valid = open('data/x_valid.txt','w')
-		y_valid = open('data/y_valid.txt','w')
-		x_test = open('data/x_test.txt','w')
-		y_test = open('data/y_test.txt','w')
+		x_train = open('../data/x_train.txt','w+')
+		y_train = open('../data/y_train.txt','w+')
+		x_valid = open('../data/x_valid.txt','w+')
+		y_valid = open('../data/y_valid.txt','w+')
+		x_test = open('../data/x_test.txt','w+')
+		y_test = open('../data/y_test.txt','w+')
 		time_period = datetime.timedelta(hours=1)
 		d = self.start
 		current_loc = 0

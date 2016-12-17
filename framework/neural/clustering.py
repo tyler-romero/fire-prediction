@@ -2,6 +2,7 @@ import numpy as np
 import random
 from keras.models import Sequential
 from keras.layers.core import Dense,Activation
+from sklearn.cluster import KMeans
 
 #Run format_data first, to get the data in the form this file needs it.
 
@@ -9,38 +10,38 @@ from keras.layers.core import Dense,Activation
 size_of_y_grid = (20,20)
 
 
-x_train_temp = open('data/x_train.txt','r')
+x_train_temp = open('../data/x_train.txt','r')
 x_train_points = 0
 for line in x_train_temp:
 	if line.strip() == 'NEW_POINT':
 		x_train_points += 1
 x_train_temp.close()
 
-x_valid_temp = open('data/x_valid.txt','r')
+x_valid_temp = open('../data/x_valid.txt','r')
 x_valid_points = 0
 for line in x_valid_temp:
 	if line.strip() == 'NEW_POINT':
 		x_valid_points += 1
 x_valid_temp.close()
 
-x_test_temp = open('data/x_test.txt','r')
+x_test_temp = open('../data/x_test.txt','r')
 x_test_points = 0
 for line in x_test_temp:
 	if line.strip() == 'NEW_POINT':
 		x_test_points += 1
 x_test_temp.close()
 
-x_train = open('data/x_train.txt','r')
+x_train = open('../data/x_train.txt','r')
 print 1
-y_train = open('data/y_train.txt','r')
+y_train = open('../data/y_train.txt','r')
 print 2
-x_valid = open('data/x_valid.txt','r')
+x_valid = open('../data/x_valid.txt','r')
 print 3
-y_valid = open('data/y_valid.txt','r')
+y_valid = open('../data/y_valid.txt','r')
 print 4
-x_test = open('data/x_test.txt','r')
+x_test = open('../data/x_test.txt','r')
 print 5
-y_test = open('data/y_test.txt','r')
+y_test = open('../data/y_test.txt','r')
 print 6
 
 def return_npArray_x(f,size):
@@ -115,10 +116,16 @@ def cluster(guesses,n_clusters):
 	#FILL IN HERE
 	#The weird thing about clustering here is that the grid is not a 20x20 array, but a 400 element array.
 	#The first 20 elements is the top row, the next 20 are the next row, and so on. 
-	r = np.zeros(np.shape(guesses)[0])
-	for i in xrange(0,np.shape(guesses)[0]):
-		r[i] = random.randint(0,n_clusters-1)
-	return r
+	# r = np.zeros(np.shape(guesses)[0])
+	# for i in xrange(0,np.shape(guesses)[0]):
+	# 	r[i] = random.randint(0,n_clusters-1)
+	# return r
+	fit_data = guesses.reshape(-1,1)
+	print fit_data  
+	means = KMeans(init='k-means++', n_clusters = n_clusters)
+	means.fit(fit_data)
+	print means.labels_
+	return means.labels_
 
 
 
