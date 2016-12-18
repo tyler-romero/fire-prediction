@@ -3,6 +3,15 @@ Tyler Romero
 Frank Cipollone
 Zach Barnes
 
+CS221 Project: Dynamic Allocation of Emergency Resources
+
+We compare several models (a greedy baseline model, an unrealistic oracle model, and a reinforcement learning model) that each attempt to minimize the response times of emergency vehicles to incidents. We use real emergency incident data from San Diego mapped on to an n by m grid with a variable number of emergency vehicles responding.
+
+
+CS229 Project: Predicting Emergency Incidents in San Diego
+
+We attempt to predict the likelihood of an emergency incident occuring in any given 400m by 400m subsection of San Diego.
+
 
 ---------------------------------------------- reports ------------------------------------------------
 
