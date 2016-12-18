@@ -10,7 +10,7 @@ import simulation
 
 
 class dataDispenser():
-	def __init__(self,day,timerange,ts=4,dataFileNames=['new_incidents2009.csv'], verbose = False):
+	def __init__(self,day,timerange,ts=4,dataFileNames=['../data/new_data/new_incidents2009.csv'], verbose = False):
 		#Emergency Medical Response,FS09000001,San Diego,Stabbing/Gunshot (L1),2800 BROADWAY,28TH ST/29TH ST,SAN DIEGO,92102,1/1/09 0:05:49,1/1/09 0:08:08,0:02:19
 		self.data = []
 		self.dataLength = []
