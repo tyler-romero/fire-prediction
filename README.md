@@ -9,6 +9,8 @@ We compare several models (a greedy baseline model, an unrealistic oracle model,
 
 We attempt to predict the likelihood of an emergency incident occuring in any given 400m by 400m subsection of San Diego.
 
+---
+---
 
 ## reports
 
